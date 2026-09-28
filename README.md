@@ -39,6 +39,48 @@ The product is the autonomous organization above the coding tools.
 
 Lazarus is a recovery tool inside Afterlife. Brainbase is the agent/orchestration layer. Cloudflare is the deployment/runtime layer. Stripe is the monetization layer.
 
+
+## Brainbase-First Architecture Rule
+
+**Brainbase is the default control plane for the entire project.**
+
+If a task can reasonably be executed inside Brainbase, it should be executed inside Brainbase rather than through a separate local script, standalone agent framework, or parallel automation system.
+
+Use Brainbase for:
+
+- agent creation and runtime
+- multi-agent orchestration and handoffs
+- coding-agent sandboxes
+- repository cloning, inspection, testing, and code changes
+- GitHub access through the Brainbase GitHub integration
+- browser-based research and visual verification
+- shared files and artifacts
+- agent memory
+- secrets and runtime credentials
+- MCP servers, integrations, and custom functions
+- task/event observability
+- evaluations and repeatable verification
+- triggering deployment/payment actions through tools
+
+External systems still provide the underlying specialized service when Brainbase does not replace that service:
+
+- **Lazarus** provides specialized repository resurrection logic, but should run inside a Brainbase sandbox if the environment supports it. Only fall back to an externally hosted Lazarus wrapper if Brainbase cannot run the required workload reliably.
+- **Cloudflare** remains the production infrastructure provider, but a Brainbase agent should provision/deploy/manage it through CLI, API, MCP, or a narrow custom function.
+- **Stripe** remains the payment processor, but a Brainbase agent should create/configure/test billing through Stripe APIs/tools using credentials stored in Brainbase Secrets.
+- **GitHub** remains the source repository, but Brainbase's GitHub connection should be preferred over separate credentials/scripts.
+
+The principle is:
+
+```
+Brainbase decides + Brainbase executes
+        ↓
+specialized external service only where required
+```
+
+Do not build a second orchestration layer outside Brainbase.
+
+---
+
 ## What We Are NOT Building
 
 To keep the hackathon scope controlled:
@@ -157,7 +199,7 @@ Validate Lazarus immediately.
 
 Determine whether it can run directly in the chosen Brainbase environment.
 
-If Docker/nested virtualization/dependency restrictions make that painful, **stop fighting the environment**. Run Lazarus separately and expose it to Brainbase through a wrapper/tool.
+If Docker/nested virtualization/dependency restrictions make that impossible or unreliable after a quick validation, **stop fighting the environment**. Keep Brainbase as the orchestrator and expose Lazarus back into Brainbase through a narrow MCP server or custom function. External execution is a fallback, not the default.
 
 Target internal contract:
 
@@ -255,6 +297,7 @@ or equivalent and receive:
 ### Person 1 definition of done
 
 - Brainbase credentials work.
+- Brainbase is the control plane for Scout, Investment Committee, Resurrection Engineer, tools, secrets, events, and handoffs.
 - Candidate repos can be submitted.
 - Scout produces structured analyses.
 - Investment Committee chooses FUND or PASS_ALL.
@@ -277,7 +320,7 @@ Own everything that answers:
 
 Person 2 turns the recovered capability into a convincing product.
 
-They should build against a mock capability immediately instead of waiting for Person 1.
+Person 2 should use a Brainbase coding agent/sandbox as the default development environment and Brainbase GitHub integration for repository work. They should build against a mock capability immediately instead of waiting for Person 1.
 
 ### 1. Build the Afterlife control surface
 
@@ -420,13 +463,13 @@ Own everything that answers:
 
 **Can the thing actually run in production, accept payment, and survive the live demo?**
 
-Person 3 is the final integration owner.
+Person 3 is the final integration owner. Their deployment/integration automation should run through Brainbase wherever possible rather than a separate local orchestration stack.
 
 If every subsystem works separately but the full demo fails, this role owns fixing the seam.
 
 ### 1. Cloudflare production path
 
-Set up the deployment path immediately using a dummy service before the real recovered software exists.
+Set up the deployment path immediately using a Brainbase coding agent with Cloudflare credentials stored in Brainbase Secrets. Deploy a dummy service before the real recovered software exists.
 
 Own:
 
@@ -443,7 +486,7 @@ The deployment workflow should be deterministic and documented.
 
 ### 2. Stripe billing
 
-Implement the minimum real billing path in **Stripe test mode**.
+Implement the minimum real billing path in **Stripe test mode**, operated from a Brainbase agent through Stripe's API/SDK, MCP, or a narrow custom function. Store Stripe credentials in Brainbase Secrets rather than local files.
 
 Required:
 
@@ -520,6 +563,7 @@ Own demo resilience:
 
 ### Person 3 definition of done
 
+- Brainbase agent can drive the deployment/payment workflow.
 - Public production URL works.
 - Dummy service deployed before waiting on the real artifact.
 - Real recovered artifact can be deployed through the same path.
