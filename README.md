@@ -17,7 +17,7 @@ The native Brainbase graph runs independently of an open browser. Cloudflare D1 
 
 | Route | Current behavior |
 | --- | --- |
-| `/`, `/afterlife/` | Live agent console in the original approved dashboard layout |
+| `/`, `/afterlife/` | Connected agent canvas in the original dark console shell |
 | `/product/` | Portfolio of generated products |
 | `/product/?run=<id>` | Product provenance, temporary preview and Stripe test checkout |
 | `/p/<id>/` | Isolated, proxied generated product; real upstream execution |
@@ -66,7 +66,7 @@ The earlier DNA renderer's Python and integration checks remain available throug
 - `src/live-runs.js`: native Brainbase task chain, evidence, deployment verification and D1 persistence.
 - `src/live-products.js`: isolated preview proxy, product-specific Stripe test checkout and verification.
 - `src/components/live-console.tsx`, `live-product.tsx`: current public app.
-- `src/designs/console-live.json`: approved console template adapted to live data by `scripts/create-live-design.py`.
+- `src/components/agent-canvas.css`, `src/lib/agent-canvas.ts`: one-viewport agent canvas, actual handoffs, traces and outputs. Earlier imported designs remain available in `src/designs/`.
 - `agents/`: native graph identifiers and actual agent instructions; `scripts/configure-brainbase.py` configures them.
 - `src/billing.js`, `person1/`, original designs: preserved prior team work.
 

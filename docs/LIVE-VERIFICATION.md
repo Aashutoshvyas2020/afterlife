@@ -6,8 +6,8 @@ This records observed results, not guarantees about arbitrary future repositorie
 
 - URL: https://afterlife.afterlife-worker.workers.dev
 - Source branch: `codex/afterlife-integrated`; published using `roanshdesai`. Main was not pushed.
-- The original console layout is retained. Thinking Orb state, elapsed time and stage filters reflect actual task activity. MetalFx is limited to the primary action. Desktop, 390px mobile and reduced-motion behavior were checked.
-- Lint, TypeScript and production build pass. All 65 Node tests pass; this suite includes historical product tests as well as the current live engine. Long agent histories are read beyond the provider's default 200-message window, and failed task creation stays visibly failed on reload.
+- The original dark console shell is retained. A connected four-agent canvas shows actual handoffs, outputs and selected-agent traces within one desktop viewport. Thinking Orb state and elapsed time reflect actual task activity. MetalFx is limited to the primary action. Desktop, 390px mobile and reduced-motion behavior were checked.
+- Lint, TypeScript and production build pass. All 68 Node tests pass; this suite includes historical product tests as well as the current live engine. Long agent histories are read beyond the provider's default 200-message window, and failed task creation stays visibly failed on reload.
 
 ## First generated product
 
@@ -37,3 +37,11 @@ Only test payments are enabled. The preview remains free; this is not an enforce
 ## Limits
 
 Temporary sandbox previews can expire or sleep. Repository suitability, licensing evidence, dependency setup and generated UI quality still require per-run verification. Public runs are capped at one active run and ten starts per day. No result is declared live solely because a task ended successfully: the host requires matching source provenance and a successful example execution.
+
+## Healthcare demo product
+
+Run `7c0dcc20-929a-4219-8631-04b4a9aadcf6` was started through the public browser by entering only **Healthcare**. Scout, investment, recovery and product generation completed through native handoffs without manual steering. The agents selected `robinson-vidva/DrugInteract` at revision `1d1f4129c623c49add57e3634fcea2a00771fbe6`.
+
+Independent public-Worker checks after task completion returned real nonempty cited label passages for two different valid input pairs, an explicit unknown-drug result with no fabricated findings, and HTTP 400 for invalid input types. Browser QA additionally exercised the form with a different pair. These are software behavior checks, not clinical validation.
+
+The user selected DrugInteract as the presentation demo. CSVMeta's test run is archived from the public portfolio and its Worker preview is disabled; historical verification remains above for audit. No new discovery is started for presentation polish.

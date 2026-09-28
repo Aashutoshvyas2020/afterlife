@@ -1,60 +1,170 @@
 "use client";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ComponentType, type ChangeEvent, type KeyboardEvent, type MouseEvent } from 'react';
+
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import type { OrbState } from 'thinking-orbs';
+const ThinkingOrb = dynamic(() => import('thinking-orbs').then(module => module.ThinkingOrb), { ssr: false });
+const MetalFx = dynamic(() => import('metal-fx').then(module => module.MetalFx), { ssr: false });
 import { liveApi, type LiveRun, type RunSummary } from '@/lib/live-types';
-import design from '@/designs/console-live.json';
-import { useRouter } from 'next/navigation';
-import { ThinkingOrb, type OrbState } from 'thinking-orbs';
-import { MetalFx } from 'metal-fx';
-const orbStates:Record<string,OrbState>={scout:'searching',investment:'solving',resurrection:'working',product:'composing',deployment:'connecting'};
-function subscribeMotion(change:()=>void){const media=matchMedia('(prefers-reduced-motion: reduce)');media.addEventListener('change',change);return()=>media.removeEventListener('change',change)}
-const motionSnapshot=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
-const serverMotionSnapshot=()=>true;
-const colors = { text:'#EDEDED', muted:'#8F8F8F', brand:'#FF6B2C', ok:'#34D399', fail:'#FF5A5F', blue:'#52A8FF' };
+import { buildAgentCanvas, buildAgentHandoffs } from '@/lib/agent-canvas';
+import './agent-canvas.css';
+
+const orbStates: Record<string, OrbState> = { scout: 'searching', investment: 'solving', resurrection: 'working', product: 'composing' };
+const motionQuery = '(prefers-reduced-motion: reduce)';
+function subscribeMotion(change: () => void) { const media = matchMedia(motionQuery); media.addEventListener('change', change); return () => media.removeEventListener('change', change); }
+const motionSnapshot = () => matchMedia(motionQuery).matches;
+const serverMotionSnapshot = () => true;
+const time = (value: string) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
 export function LiveConsole() {
- const router=useRouter();
- const reducedMotion=useSyncExternalStore(subscribeMotion,motionSnapshot,serverMotionSnapshot);
- const [View,setView]=useState<ComponentType<{values:Record<string,unknown>}>|null>(null);
- const [clock,setClock]=useState(0),[stageFilter,setStageFilter]=useState('');
- const [run,setRun]=useState<LiveRun|null>(null), [runs,setRuns]=useState<RunSummary[]>([]), [id,setId]=useState('');
- const [thesis,setThesis]=useState('');
- const hydratedRun=useRef(''),draftEdited=useRef(false);
- const [error,setError]=useState(''),[starting,setStarting]=useState(false),[connected,setConnected]=useState(false),[selected,setSelected]=useState(''),[rail,setRail]=useState('portfolio'),[cmd,setCmd]=useState(false),[query,setQuery]=useState(''),[cmdIndex,setCmdIndex]=useState(0);
- useEffect(()=> { let alive=true; import('@/vendor/design-runtime').then(({createDesignComponent})=> { if(alive)setView(()=>createDesignComponent('live-console',design)); }).catch(()=>setError('The console could not load. Reload the page.')); return()=>{alive=false}; },[]);
- const loadList=useCallback(async()=>{const data=await liveApi<{runs:RunSummary[]}>('/api/runs');setRuns(data.runs);setConnected(true);return data.runs;},[]);
- useEffect(()=>{let alive=true;void liveApi<{runs:RunSummary[]}>('/api/runs').then(data=>{if(!alive)return;setRuns(data.runs);setConnected(true);const requested=new URLSearchParams(location.search).get('run');setId(requested||data.runs[0]?.id||'');}).catch(e=>{if(alive)setError(e.message)});return()=>{alive=false};},[]);
- useEffect(()=>{if(!id)return;let alive=true;let timeout:ReturnType<typeof setTimeout>;const controller=new AbortController();async function poll(){try{const data=await liveApi<LiveRun>(`/api/runs/${id}`,{signal:controller.signal});if(alive){if(hydratedRun.current!==data.id){if(!draftEdited.current)setThesis(data.thesis);hydratedRun.current=data.id}setRun(data);setError(data.refreshError||'');setConnected(true);}}catch(e){if(alive)setError(e instanceof Error?e.message:'Refresh failed');}finally{if(alive)timeout=setTimeout(poll,6000);}}void poll();return()=>{alive=false;controller.abort();clearTimeout(timeout)};},[id]);
- useEffect(()=>{function key(e:globalThis.KeyboardEvent){if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();setCmd(v=>!v)}if(e.key==='Escape')setCmd(false)}window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[]);
- useEffect(()=>{if(run?.state!=='running'&&run?.state!=='starting')return;const timer=setInterval(()=>setClock(Math.floor(Date.now()/1000)),1000);return()=>clearInterval(timer)},[run?.state]);
- const busy=starting||run?.state==='running'||run?.state==='starting';
- async function start(){if(busy)return;setStarting(true);setError('');try{const next=await liveApi<{id:string}>('/api/runs',{method:'POST',body:JSON.stringify({thesis})});setRun(null);setId(next.id);history.replaceState(null,'',`?run=${next.id}`);await loadList();}catch(e){setError(e instanceof Error?e.message:'Could not start run');}finally{setStarting(false)}}
- function choose(next:string){hydratedRun.current='';draftEdited.current=false;setCmd(false);setRun(null);setId(next);history.replaceState(null,'',`?run=${next}`)}
- const stages=run?.stages||[],candidates=run?.candidates||[],decision=run?.decision,live=run?.state==='live',product=run?.product;
- const candidate=candidates.find(c=>c.repository===selected)||candidates.find(c=>c.repository===decision?.repository)||candidates[0];
- const pill=(repo:string)=>decision?.decision==='FUND'?(repo===decision.repository?'Invest':'Pass'):decision?.decision==='PASS_ALL'?'Pass':'Analyzing';
- const fg=(s:string)=>s==='Invest'?colors.blue:s==='Complete'?colors.ok:s==='Failed'?colors.fail:s==='Analyzing'||s==='In progress'?colors.brand:colors.muted;
- const milestones=['scout','investment','resurrection','product','deployment'].map((kind,i)=>{const stage=stages.find(s=>s.kind===kind);const status=kind==='deployment'?(live?'Complete':product?'In progress':'Pending'):stage?(stage.status==='success'&&stage.resultStatus!=='FAILED'?'Complete':['fail','need_more_info','idle','cancelled'].includes(stage.status)||(stage.status==='success'&&stage.resultStatus==='FAILED')?'Failed':'In progress'):'Pending';return{onClick:()=>setStageFilter(current=>current===kind?'':kind),selected:stageFilter===kind,rowBg:stageFilter===kind?'#21160F':'transparent',activeClass:status==='In progress'?'live-stage-active':'',label:['Discover repositories','Choose the investment','Recover and verify','Generate the product','Deploy and monetize'][i],detail:kind==='deployment'?(live?'Temporary URL verified · Stripe test checkout': 'Pending'):stage?.label||['Scout','Investment manager','Resurrection engineer','Product engineer'][i],status,dot:status==='In progress'?'● ':'',fg:fg(status),glyph:status==='Complete'?'✓':status==='Failed'?'×':String(i+1),labelColor:status==='Pending'?colors.muted:colors.text,border:status==='Pending'?'#333':fg(status),bg:status==='Complete'?'rgba(52,211,153,.1)':'transparent'};});
- const done=milestones.filter(m=>m.status==='Complete').length;
- const openProduct=()=>{if(product)router.push(`/product/?run=${run!.id}`);else router.push('/product/')};
- const commands=[{label:'Start discovery',group:'Run',run:()=>{setCmd(false);void start()}},{label:'Browse products',group:'Navigate',run:()=>router.push('/product/')},...runs.map(r=>({label:`${r.product?.name||r.thesis.slice(0,65)} · ${r.state}`,group:'Recent run',run:()=>choose(r.id)}))].filter(c=>(c.label+' '+c.group).toLowerCase().includes(query.toLowerCase()));
- const elapsed=run?Math.max(0,(busy?Math.max(clock,run.updatedAt||run.createdAt):(run.updatedAt||run.createdAt))-run.createdAt):0;
- const activeStage=[...stages].reverse().find(stage=>['running','initializing'].includes(stage.status));
- const latestNarration=run?.events.find(event=>event.status==='message'&&(!event.stage||event.stage===activeStage?.kind));
- const filteredEvents=(run?.events||[]).filter(event=>!stageFilter||event.stage===stageFilter);
- const runLabel=starting?'Starting…':busy?'Running…':run?'New run':'Discover';
- const values={
- progressOrb:<span aria-hidden="true" style={{display:'block',flexShrink:0,width:64,height:64}}><ThinkingOrb state={orbStates[activeStage?.kind||'deployment']} size={64} theme="dark" speed={0.75} paused={!busy||reducedMotion} aria-hidden="true"/></span>,
- runAction:<MetalFx preset="silver" theme="dark" strength={0.5} glowGain={0.3} paused={reducedMotion||Boolean(busy)} normalizeHostStyles={false} borderRadius={8}><button type="button" className="live-run-action" disabled={Boolean(busy)} aria-busy={Boolean(busy)} onClick={()=>void start()} style={{all:'unset',boxSizing:'border-box',cursor:busy?'default':'pointer',padding:'9px 18px',minWidth:112,textAlign:'center',borderRadius:8,fontSize:13.5,fontWeight:600,background:'#EDEDED',color:'#000',opacity:busy?.55:1}}>{runLabel}</button></MetalFx>,
- hasLiveActivity:Boolean(run),activityRunning:busy,activityStage:activeStage?.label||stages.at(-1)?.label||'Starting',activityNarration:latestNarration?.text||run?.error||run?.state||'',elapsedLabel:`${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,'0')}`,stageFiltered:Boolean(stageFilter),clearStageFilter:()=>setStageFilter(''),activityClass:busy?'live-activity live-activity-running':'live-activity',
- isPortfolio:true,isPocket:false,checkoutOpen:false,panelTitle:rail==='portfolio'?'Portfolio':'Products',isRailPortfolio:rail==='portfolio',isRailProducts:rail==='products',railPortfolio:()=>setRail('portfolio'),railProducts:()=>{setRail('products');void loadList().catch(e=>setError(e.message))},railPortBg:rail==='portfolio'?'#1A1A1A':'transparent',railPortColor:colors.text,railProdBg:rail==='products'?'#1A1A1A':'transparent',railProdColor:colors.text,railNone:'transparent',railIdle:colors.muted,
- thesis,thesisInput:(e:ChangeEvent<HTMLTextAreaElement>)=>{draftEdited.current=true;setThesis(e.target.value)},connectionNote:connected?'Connected to Brainbase · public demo: one active run at a time':'Connecting to live service',runIdLabel:id?id.slice(0,8):'no run',productName:product?.name||'Products',productDescription:product?`${product.repository} · temporary free preview · Stripe test mode`:'No products yet.',liveLabel:live?'Live':busy?'Building':'Not launched',liveColor:live?colors.ok:colors.muted,
- pipePct:`${done/5*100}%`,progressPct:`${done/5*100}%`,progressColor:colors.brand,pipelineSummary:`${done} of 5 complete`,milestones,
- evaluate:()=>void start(),retry:()=>{if(error&&!run?.error){setError('');void loadList().then(list=>{if(!id&&list[0])choose(list[0].id)}).catch(e=>setError(e.message))}else void start()},runBtnLabel:starting?'Starting…':busy?'Running…':run?'New run':'Discover',runBtnCursor:busy?'default':'pointer',runBtnOpacity:busy?.55:1,isFailed:Boolean(error||run?.error||run?.state==='passed'),errorTitle:run?.state==='passed'?'No investment made':run?.state==='failed'?'Run stopped':'Service update',errorBody:error||run?.error||decision?.reason,isLive:live,openPocket:openProduct,
- stats:[{label:'Candidates',value:String(candidates.length),sub:candidates.length?'Discovered':'Pending',color:colors.text},{label:'Investment',value:decision?.decision==='FUND'?'1':'0',sub:decision?.repository||'No repository selected',color:colors.text},{label:'Products live',value:live?'1':'0',sub:product?.name||'Pending',color:live?colors.ok:colors.text},{label:'Elapsed',value:`${Math.floor(elapsed/60)}m ${elapsed%60}s`,sub:run?.state||'Ready',color:colors.text}],
- candSummary:candidates.length?`${candidates.length} discovered`:'Pending',noCandidates:!candidates.length,candidateEmpty:busy?'Discovering…':'No candidates yet.',candidates:candidates.map(c=>({dot:'',repo:c.repository,blurb:c.capability.slice(0,100),status:pill(c.repository),fg:fg(pill(c.repository)),bg:'#202020',decided:decision?'✓':'—',rowBg:c.repository===candidate?.repository?'#18181A':'transparent',rowShadow:c.repository===candidate?.repository?'inset 2px 0 0 #EDEDED':'none',onClick:()=>setSelected(c.repository)})),
- report:{dot:decision?'':'',repo:candidate?.repository||'Awaiting Scout',status:candidate?pill(candidate.repository):'Pending',fg:candidate?fg(pill(candidate.repository)):colors.muted,bg:'#202020',hasDecision:Boolean(decision),verdict:decision&&candidate&&decision.repository===candidate.repository?'Invest.':'Pass.',decision:decision&&candidate&&decision.repository===candidate.repository?decision.reason:candidate?.recommendation,sections:candidate?[{k:'Capability',v:candidate.capability},{k:'Product opportunity',v:candidate.productHypothesis},{k:'License',v:candidate.license},{k:'Maintenance context',v:candidate.evidence},{k:'Risks',v:candidate.risks},...(run?.repair&&candidate&&candidate.repository===decision?.repository?[{k:'Recovery',v:run.repair.summary}]:[])]:[{k:'Your thesis',v:run?.thesis||thesis}]},
- events:filteredEvents.map(e=>({time:new Date(e.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),text:e.text,color:e.status==='success'?colors.ok:colors.brand,textColor:colors.text})),noEvents:!filteredEvents.length,eventCount:`${filteredEvents.length} updates`,integrations:[{name:'Brainbase',role:'',status:connected?'Connected':'Checking'},{name:'Cloudflare',role:'',status:connected?'Live':'Checking'},{name:'Stripe',role:'',status:run?.billing?.configured?'Test mode':'Checking'}],
- cmdOpen:cmd,cmdQuery:query,cmdEmpty:!commands.length,openCmd:()=>{setCmd(true);setQuery('');setCmdIndex(0);void loadList().catch(e=>setError(e.message))},closeCmd:()=>setCmd(false),stop:(e:MouseEvent)=>e.stopPropagation(),cmdInput:(e:ChangeEvent<HTMLInputElement>)=>{setQuery(e.target.value);setCmdIndex(0)},cmdKey:(e:KeyboardEvent)=>{if(e.key==='ArrowDown'){e.preventDefault();setCmdIndex(i=>Math.min(i+1,commands.length-1))}if(e.key==='ArrowUp'){e.preventDefault();setCmdIndex(i=>Math.max(0,i-1))}if(e.key==='Enter')commands[cmdIndex]?.run()},cmdItems:commands.map((c,i)=>({...c,hover:()=>setCmdIndex(i),bg:i===cmdIndex?'#202020':'transparent',color:colors.text})),
- };
- if(!View)return <main className="design-loading" role="status">{error||'Loading Afterlife…'}</main>;
- return <div className="design-export"><View values={values}/></div>;
+  const reducedMotion = useSyncExternalStore(subscribeMotion, motionSnapshot, serverMotionSnapshot);
+  const [run, setRun] = useState<LiveRun | null>(null);
+  const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [id, setId] = useState('');
+  const [thesis, setThesis] = useState('');
+  const [error, setError] = useState('');
+  const [starting, setStarting] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [selected, setSelected] = useState('');
+  const [clock, setClock] = useState(0);
+  const hydrated = useRef('');
+  const busy = starting || run?.state === 'running' || run?.state === 'starting';
+
+  useEffect(() => {
+    let alive = true;
+    liveApi<{ runs: RunSummary[] }>('/api/runs').then(data => {
+      if (!alive) return;
+      setRuns(data.runs);
+      const requested = new URLSearchParams(location.search).get('run');
+      // Resume active work or the latest published product; archived tests are excluded by the API.
+      setId(requested || data.runs.find(item => ['running', 'starting'].includes(item.state))?.id || data.runs.find(item => item.state === 'live')?.id || '');
+      setLoaded(true);
+    }).catch(reason => { if (alive) { setError(reason.message); setLoaded(true); } });
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!id) return;
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const controller = new AbortController();
+    async function poll() {
+      try {
+        const next = await liveApi<LiveRun>(`/api/runs/${id}`, { signal: controller.signal });
+        if (!alive) return;
+        if (hydrated.current !== id) { setThesis(next.thesis); hydrated.current = id; }
+        setRun(next); setError(next.refreshError || '');
+      } catch (reason) { if (alive) setError(reason instanceof Error ? reason.message : 'Could not refresh this run.'); }
+      finally { if (alive) timer = setTimeout(poll, 6000); }
+    }
+    void poll();
+    return () => { alive = false; controller.abort(); clearTimeout(timer); };
+  }, [id]);
+
+  useEffect(() => {
+    if (!busy) return;
+    const timer = setInterval(() => setClock(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [busy]);
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') { event.preventDefault(); setHistoryOpen(value => !value); }
+      if (event.key === 'Escape') setHistoryOpen(false);
+    };
+    window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
+  }, []);
+
+  function choose(next: string) {
+    hydrated.current = ''; setRun(null); setSelected(''); setId(next); setHistoryOpen(false);
+    history.replaceState(null, '', `?run=${next}`);
+  }
+  function fresh() {
+    if (busy) return;
+    hydrated.current = ''; setRun(null); setId(''); setThesis(''); setSelected(''); setError('');
+    history.replaceState(null, '', location.pathname);
+  }
+  async function start() {
+    if (busy || !thesis.trim()) return;
+    setStarting(true); setError('');
+    try {
+      const next = await liveApi<{ id: string }>('/api/runs', { method: 'POST', body: JSON.stringify({ thesis }) });
+      choose(next.id);
+      const list = await liveApi<{ runs: RunSummary[] }>('/api/runs'); setRuns(list.runs);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not start discovery.'); }
+    finally { setStarting(false); }
+  }
+
+  const nodes = buildAgentCanvas(run);
+  const handoffs = buildAgentHandoffs(run);
+  const focusedKey = selected || nodes.find(node => node.status === 'working')?.key || (run ? [...nodes].reverse().find(node => node.status === 'complete')?.key : 'scout') || 'scout';
+  const focused = nodes.find(node => node.key === focusedKey) || nodes[0];
+  const elapsed = run ? Math.max(0, (busy ? Math.max(clock, run.updatedAt || run.createdAt) : run.updatedAt || run.createdAt) - run.createdAt) : 0;
+  const elapsedLabel = `${Math.floor(elapsed / 60).toString().padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
+  const live = run?.state === 'live' && Boolean(run.product);
+  const complete = nodes.filter(node => node.status === 'complete').length;
+  const statusText = !loaded || (id && !run) ? 'Connecting' : live ? 'Product live' : busy ? 'Agents working' : run?.state === 'failed' ? 'Run stopped' : run?.state === 'passed' ? 'No investment' : 'Ready';
+  const events = focused.messages.filter(event => event.status === 'message');
+  const action = run && !busy ? fresh : () => void start();
+
+  return <div className="agent-console">
+    <nav className="ac-rail" aria-label="Navigation">
+      <Link href="/" className="ac-symbol" aria-label="Afterlife"><svg width="26" height="26" viewBox="0 0 28 28" fill="none"><path d="M2 15h6l3-8 5 16 3-8h7" stroke="currentColor" strokeWidth="2"/><circle cx="25" cy="15" r="2" fill="#FF6B2C"/></svg></Link>
+      <button className="ac-rail-active" aria-label="Workspace" onClick={() => setHistoryOpen(false)}>▱</button>
+      <Link href="/product/" aria-label="Products">▤</Link>
+      <button aria-label="Recent runs" onClick={() => setHistoryOpen(true)}>⌕</button>
+      <span className="ac-avatar">A</span>
+    </nav>
+    <aside className="ac-sidebar">
+      <div className="ac-sidebar-title">Portfolio</div>
+      <button className="ac-sidebar-current" onClick={() => setHistoryOpen(false)}>Workspace <span>↗</span></button>
+      <div className="ac-sidebar-label">THIS RUN</div>
+      <p className="ac-sector-name">{run?.thesis || thesis || 'New discovery'}</p>
+      <div className="ac-sidebar-progress"><span style={{ width: `${complete / 4 * 100}%` }}/></div>
+      <span className="ac-sidebar-muted">{complete} of 4 agents complete</span>
+      <div className="ac-sidebar-bottom"><span><i/> Brainbase</span><span><i/> Cloudflare</span><span>Stripe · test mode</span></div>
+    </aside>
+    <main className="ac-main">
+      <header className="ac-topbar"><span>Workspace <span className="ac-topbar-slash">/</span> Agent canvas</span><button onClick={() => setHistoryOpen(true)}>Recent runs <kbd>⌘K</kbd></button></header>
+      <div className="ac-workspace">
+        <div className="ac-heading"><div><span className="ac-eyebrow">AFTERLIFE</span><h1>{run?.thesis && run.thesis.length < 50 ? run.thesis : 'Portfolio'}</h1></div><div className="ac-heading-actions"><span className={`ac-run-status ${live ? 'is-live' : ''}`}><i/>{statusText}</span><time>{elapsedLabel}</time></div></div>
+        <form className="ac-run-form" onSubmit={event => { event.preventDefault(); if (!run) void start(); }}>
+          <input aria-label="Sector" placeholder="Sector or opportunity" maxLength={1500} value={thesis} onChange={event => setThesis(event.target.value)} readOnly={Boolean(busy)} />
+          <MetalFx preset="silver" theme="dark" strength={0.45} glowGain={0.25} paused={Boolean(busy) || reducedMotion} normalizeHostStyles={false} borderRadius={7}><button type="button" className="ac-primary" disabled={Boolean(busy) || (!run && !thesis.trim()) || !loaded || Boolean(id && !run)} onClick={action}>{busy ? 'Running…' : run ? 'New run' : 'Discover →'}</button></MetalFx>
+        </form>
+        {(error || run?.error) && <div className="ac-error" role="alert">{error || run?.error}</div>}
+        <section className="ac-canvas" aria-label="Live agent workflow">
+          <div className="ac-canvas-caption"><span><i className={busy ? 'ac-live-dot' : ''}/>{live ? 'WORKFLOW COMPLETE' : busy ? 'LIVE EXECUTION' : 'AGENT WORKFLOW'}</span><span>{run?.candidates.length || 0} candidates <b>·</b> {run?.decision?.decision === 'FUND' ? '1 investment' : 'No investment yet'}</span></div>
+          <div className="ac-nodes">
+            {nodes.map((node, index) => <article key={node.key} className={`ac-node is-${node.status} ${focusedKey === node.key ? 'is-selected' : ''}`}>
+              {index < nodes.length - 1 && <div className={`ac-connection ${nodes[index + 1].status !== 'waiting' ? 'is-transferred' : ''}`} aria-hidden="true"><span/><b>›</b></div>}
+              <button className="ac-node-select" onClick={() => setSelected(node.key)} aria-pressed={focusedKey === node.key} aria-label={`${node.title}: ${node.status}`}>
+                <div className="ac-orb"><ThinkingOrb state={orbStates[node.key]} size={64} theme="dark" speed={0.75} paused={node.status !== 'working' || reducedMotion}/></div>
+                <span className="ac-node-number">0{index + 1}</span><h2>{node.title}</h2>
+                <span className="ac-node-state"><i/>{node.status === 'working' ? 'Working' : node.status === 'complete' ? 'Complete' : node.status === 'failed' ? 'Stopped' : 'Waiting'}</span>
+              </button>
+              <p className="ac-node-message">{node.summary}</p>
+              <div className="ac-node-output"><span className="ac-output-label">{node.outputTitle}</span>{node.outputLines.length ? node.outputLines.slice(0, 3).map((line, i) => <p key={i}>{line}</p>) : <p className="ac-empty">—</p>}</div>
+              {index < nodes.length - 1 && <div className="ac-handoff">{handoffs[index]?.label || 'Awaiting handoff'} <span>→</span></div>}
+              {index === 3 && live && <a className="ac-open-product" href={run!.product!.url} target="_blank" rel="noopener noreferrer">Open product ↗</a>}
+            </article>)}
+          </div>
+          <div className="ac-inspector">
+            <div className="ac-trace">
+              <div className="ac-inspector-heading"><h3>{focused.title} <span>/ activity</span></h3>{selected && <button onClick={() => setSelected('')}>Follow live ↗</button>}</div>
+              <div className="ac-trace-scroll" aria-label={`${focused.title} activity`}>
+                {events.length ? events.map(event => <div className="ac-trace-event" key={event.id}><time>{time(event.time)}</time><p>{event.text}</p></div>) : <p className="ac-waiting">{busy ? 'Waiting for this agent’s first update.' : 'Activity will appear here.'}</p>}
+              </div>
+            </div>
+            <div className="ac-artifact"><div className="ac-inspector-heading"><h3>{focused.outputTitle}</h3><span className="ac-artifact-state">{focused.status}</span></div><div className="ac-artifact-scroll">
+              {focused.key === 'scout' ? run?.candidates.map(candidate => <a key={candidate.repository} href={`https://github.com/${candidate.repository}`} target="_blank" rel="noopener noreferrer"><strong>{candidate.repository} ↗</strong><span>{candidate.license} · {candidate.capability}</span></a>) : focused.key === 'investment' ? <p>{run?.decision?.reason || 'No decision yet.'}</p> : focused.key === 'resurrection' ? <p>{run?.repair?.summary || 'No verified recovery yet.'}</p> : run?.product ? <><a href={run.product.url} target="_blank" rel="noopener noreferrer"><strong>{run.product.name} ↗</strong><span>{run.product.description}</span></a><Link href={`/product/?run=${run.id}`}>Source & test checkout ↗</Link></> : <p>{focused.outputLines.join(' · ') || 'No product published yet.'}</p>}
+            </div></div>
+          </div>
+          <footer className="ac-canvas-footer"><span>{live ? 'Public preview verified' : busy ? 'Connected to native agent tasks' : 'No preselected repository'}</span><span>{live ? 'Temporary URL · Stripe test mode' : 'Messages and outputs from the current run'}</span></footer>
+        </section>
+      </div>
+    </main>
+    {historyOpen && <div className="ac-dialog-backdrop" onClick={() => setHistoryOpen(false)}><section className="ac-history" role="dialog" aria-modal="true" aria-label="Recent runs" onClick={event => event.stopPropagation()}><header><h2>Recent runs</h2><button onClick={() => setHistoryOpen(false)} aria-label="Close recent runs">×</button></header>{runs.length ? runs.map(item => <button key={item.id} onClick={() => choose(item.id)}><span>{item.thesis}</span><small>{item.state}</small></button>) : <p>No runs yet.</p>}</section></div>}
+  </div>;
 }

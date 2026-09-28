@@ -109,6 +109,7 @@ test('sandbox proxy strips user cookies and authorization, isolates generated HT
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('set-cookie'), null);
   assert.match(response.headers.get('content-security-policy'), /sandbox allow-scripts/);
+  assert.match(response.headers.get('content-security-policy'), /allow-popups-to-escape-sandbox/);
   assert.doesNotMatch(response.headers.get('content-security-policy'), /allow-same-origin/);
   assert.match(response.headers.get('content-security-policy'), /script-src 'unsafe-inline' https:\/\/afterlife.test/);
 });
@@ -367,4 +368,45 @@ test('a failed initial task creation stays failed when reloaded instead of showi
   assert.equal(result.state, 'failed');
   assert.match(result.error, /could not be started.*Start a new run/);
   assert.deepEqual(result.stages, []);
+});
+
+test('archived runs are private and never refresh their native tasks even when forced', async t => {
+  t.mock.method(globalThis, 'fetch', () => { throw Error('Archived tasks must not refresh'); });
+  const row = { id, state: 'archived', root_task_id: 'old-task', snapshot: JSON.stringify({ id, state: 'live', product }) };
+  const env = { DB: database(row), BRAINBASE_TOKEN: 'synthetic' };
+  assert.equal(await getRun(env, id, true), null);
+  const response = await handleRuns(new Request(`https://afterlife.test/api/runs/${id}`), env);
+  assert.equal(response.status, 404);
+});
+
+test('public run listings exclude archived rows generically', async () => {
+  const env = { BRAINBASE_TOKEN: 'synthetic', DB: { prepare(sql) {
+    assert.match(sql, /WHERE state != 'archived'/);
+    assert.doesNotMatch(sql, /CSVMeta|e5674bd9/);
+    return { all: async () => ({ results: [{ id, thesis: 'Healthcare', state: 'running', created_at: 1, snapshot: null }] }) };
+  } } };
+  const response = await handleRuns(new Request('https://afterlife.test/api/runs'), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).runs.map(run => run.thesis), ['Healthcare']);
+});
+
+test('an in-flight refresh cannot publish or resurrect a run archived after its initial read', async t => {
+  const row = { id, thesis: 'Old run', state: 'running', root_task_id: 'scout-task', snapshot: null, created_at: 1, updated_at: 1 };
+  let guardedWrite = false;
+  const DB = { prepare(sql) { return { bind() { return {
+    first: async () => row,
+    run: async () => {
+      assert.match(sql, /UPDATE afterlife_runs SET state=/);
+      assert.match(sql, /AND state != 'archived'/);
+      guardedWrite = true;
+      return { meta: { changes: 0 } };
+    },
+  }; } }; } };
+  t.mock.method(globalThis, 'fetch', async input => {
+    const url = new URL(input);
+    if (url.pathname.endsWith('/messages') || url.searchParams.has('parent_task_id')) return Response.json({ items: [] });
+    return Response.json({ id: 'scout-task', agent_id: agents.scout, status: 'running', created_at: '2026-09-28T21:00:00Z' });
+  });
+  assert.equal(await getRun({ DB, BRAINBASE_TOKEN: 'synthetic' }, id), null);
+  assert.equal(guardedWrite, true);
 });

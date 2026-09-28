@@ -266,12 +266,12 @@ async function refresh(env, row) {
     if (elapsed > 1200) { state = 'failed'; error = 'The native handoff did not start the next agent.'; }
   }
   const snapshot = { id: row.id, thesis: row.thesis, createdAt: row.created_at, updatedAt: now(), state, stages, candidates, decision, repair, product: liveProduct, events: events.sort((a,b) => String(b.time).localeCompare(String(a.time))), error, billing: { configured: ['sk_test_', 'rk_test_', 'rkcs_test_'].some(prefix => env.STRIPE_SECRET_KEY?.startsWith(prefix)), mode: 'test' } };
-  await env.DB.prepare('UPDATE afterlife_runs SET state=?1,snapshot=?2,updated_at=?3 WHERE id=?4').bind(state, JSON.stringify(snapshot), now(), row.id).run();
-  return snapshot;
+  const saved = await env.DB.prepare("UPDATE afterlife_runs SET state=?1,snapshot=?2,updated_at=?3 WHERE id=?4 AND state != 'archived'").bind(state, JSON.stringify(snapshot), now(), row.id).run();
+  return saved.meta?.changes === 0 ? null : snapshot;
 }
 export async function getRun(env, id, force = false) {
   const row = await env.DB.prepare('SELECT * FROM afterlife_runs WHERE id=?1').bind(id).first();
-  if (!row) return null;
+  if (!row || row.state === 'archived') return null;
   const cached = row.snapshot ? JSON.parse(row.snapshot) : null;
   if (cached && !force && (now() - row.updated_at < 12 || row.state === 'passed' || (row.state === 'failed' && now() - row.updated_at < 30) || (row.state === 'live' && now() - row.updated_at < 60))) return cached;
   if (!row.root_task_id) return { id, state: row.state === 'failed' ? 'failed' : 'starting', thesis: row.thesis, stages: [], candidates: [], events: [], createdAt: row.created_at, error: row.state === 'failed' ? 'The agent run could not be started. Start a new run to try again.' : null };
@@ -283,7 +283,7 @@ export async function handleRuns(request, env) {
   try {
     if (request.method === 'GET') {
       if (id) { const run = await getRun(env, id); return run ? json(run) : json({ error: 'Run not found' }, 404); }
-      const rows = await env.DB.prepare('SELECT id,thesis,state,created_at,snapshot FROM afterlife_runs ORDER BY created_at DESC LIMIT 20').all();
+      const rows = await env.DB.prepare("SELECT id,thesis,state,created_at,snapshot FROM afterlife_runs WHERE state != 'archived' ORDER BY created_at DESC LIMIT 20").all();
       return json({ runs: rows.results.map(r => ({ id: r.id, thesis: r.thesis, state: r.state, createdAt: r.created_at, product: r.snapshot ? JSON.parse(r.snapshot).product : null })) });
     }
     if (request.method !== 'POST' || id) return json({ error: 'Method not allowed' }, 405);

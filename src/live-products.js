@@ -71,7 +71,7 @@ export async function proxyProduct(request, env) {
     responseHeaders.set('cache-control', 'no-store');
     responseHeaders.set('x-content-type-options', 'nosniff');
     responseHeaders.set('referrer-policy', 'no-referrer');
-    if (responseHeaders.get('content-type').includes('text/html')) responseHeaders.set('content-security-policy', "sandbox allow-scripts allow-forms allow-downloads allow-popups allow-top-navigation-by-user-activation; default-src 'none'; script-src 'unsafe-inline' " + url.origin + "; style-src 'unsafe-inline' " + url.origin + "; img-src data: blob: https:; connect-src " + url.origin + "; base-uri 'none'; form-action 'none'");
+    if (responseHeaders.get('content-type').includes('text/html')) responseHeaders.set('content-security-policy', "sandbox allow-scripts allow-forms allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation; default-src 'none'; script-src 'unsafe-inline' " + url.origin + "; style-src 'unsafe-inline' " + url.origin + "; img-src data: blob: https:; connect-src " + url.origin + "; base-uri 'none'; form-action 'none'");
     if (upstream.status >= 300 && upstream.status < 400) return json({ error: 'Unexpected product redirect' },502,cors);
     return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
   } catch { return json({ error: 'Temporary preview is unavailable or asleep. Return to the console and refresh its status.' }, 503, cors); }
