@@ -291,15 +291,17 @@ test('failed snapshots refresh after30seconds and ignore stale FAILED output dur
 
 const bootstrapTask = { id: 'product-task', status: 'fail', status_info: { phase: 'initialize', sandbox_initialized: false, terminal_at: '2026-09-28T21:30:00Z', error: 'BootstrapStepError: ThrottlerException: Too Many Requests' } };
 test('temporary bootstrap provider limits retry the same native task once under concurrency', async t => {
+  const originalInput = '{"repositoryUrl":"https://github.com/arbitrary/recovered-project","reproduction":"Original verified setup commands\\nOriginal real input/output"}';
   const env = { DB: recoveryDb(), BRAINBASE_TOKEN: 'synthetic' }; let starts = 0;
   t.mock.method(globalThis, 'fetch', async (input, init) => {
     if (init.method === 'POST') {
       starts++;
       assert.match(String(input), /tasks\/product-task\/messages$/);
       assert.match(JSON.parse(init.body).messages[0].content, /single automatic retry/);
+      assert.ok(JSON.parse(init.body).messages[0].content.endsWith(originalInput), 'The new runtime must receive the complete original payload verbatim');
       return Response.json({ run_started: true });
     }
-    return Response.json(String(input).includes('/messages?') ? { items: [] } : bootstrapTask);
+    return Response.json(String(input).includes('/messages?') ? { items: [{ role: 'user', content: originalInput }, { role: 'assistant', content: 'Task initializing' }] } : bootstrapTask);
   });
   await Promise.all(Array.from({ length: 4 }, () => recoverBootstrap(env, { id }, bootstrapTask)));
   await recoverBootstrap(env, { id }, bootstrapTask);

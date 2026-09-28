@@ -141,7 +141,11 @@ export async function recoverBootstrap(env, row, task, messages = []) {
       await env.DB.prepare('DELETE FROM afterlife_handoff_recovery WHERE task_id=?1').bind(key).run();
       return null;
     }
-    const response = await brainbase(env, `tasks/${task.id}/messages`, { messages: [{ role: 'user', content: 'Resume your original assigned task after the temporary provider credential-verification rate limit during initialization. The sandbox did not start. Continue from the original inputs and existing instructions; preserve the selected repository and native workflow. This is the single automatic retry for this initialization failure.' }], run: true });
+    // A fresh Brainbase runtime receives only this continuation message. Replay
+    // the initial native task input, not a later generic retry/steering message.
+    const originalInput = (list.items || []).find(message => message.role === 'user' && typeof message.content === 'string' && message.content.trim())?.content;
+    if (!originalInput) throw Error('Original task input is unavailable for initialization retry');
+    const response = await brainbase(env, `tasks/${task.id}/messages`, { messages: [{ role: 'user', content: 'Resume your original assigned task after the temporary provider credential-verification rate limit during initialization. The sandbox did not start. Follow your existing agent instructions and the original task input below; preserve the selected repository and native workflow. This is the single automatic retry for this initialization failure.\n\nOriginal task input (verbatim):\n\n' + originalInput }], run: true });
     if (response.run_started === false) throw Error('Brainbase did not start the initialization retry');
     await env.DB.prepare("UPDATE afterlife_handoff_recovery SET state='requested',updated_at=?1 WHERE task_id=?2").bind(now(), key).run();
     return { state: 'requested', created_at: timestamp };
