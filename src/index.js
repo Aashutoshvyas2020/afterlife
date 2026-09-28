@@ -77,10 +77,25 @@ function page() {
 <script>
 const $=id=>document.getElementById(id), format=v=>JSON.stringify(v,null,2);
 async function get(url){let r=await fetch(url);return {status:r.status,data:await r.json()}}
-async function load(){try{let [{data:s},{data:e}]=await Promise.all([get('/api/status'),get('/api/entitlement')]);$('product').textContent=s.productName;$('repository').textContent=s.selectedRepository||'No selected repository handed off yet';$('artifact').textContent='Artifact: '+s.artifact.status+(s.artifact.error?' — '+s.artifact.error:'');$('deployment').textContent='Worker: '+s.deployment.status+(s.deployment.productionUrl?' — '+s.deployment.productionUrl:'');$('qa').textContent='Independent QA: '+s.qa.status;$('price').textContent=s.stripe.status==='ready'?'One-time Stripe test price: '+new Intl.NumberFormat(undefined,{style:'currency',currency:s.stripe.currency}).format(s.stripe.amount/100):'Billing: '+s.stripe.status+(s.stripe.error?' — '+s.stripe.error:'');$('buy').disabled=s.stripe.status!=='ready';$('payment').textContent=e.entitled?'Verified paid access':'No verified paid access';$('run').disabled=!e.entitled||s.artifact.status!=='ready';}catch(_){$('payment').textContent='Cannot reach the service. Retry by refreshing.'}}
+async function load(){
+try{
+  let [{data:s},{data:e}]=await Promise.all([get('/api/status'),get('/api/entitlement')]);
+  $('product').textContent=s.productName;
+  $('repository').textContent=s.selectedRepository||'No selected repository handed off yet';
+  $('artifact').textContent='Artifact: '+s.artifact.status+(s.artifact.error?' — '+s.artifact.error:'');
+  $('deployment').textContent='Worker: '+s.deployment.status+(s.deployment.productionUrl?' — '+s.deployment.productionUrl:'');
+  $('qa').textContent='Independent QA: '+s.qa.status;
+  const money=new Intl.NumberFormat(undefined,{style:'currency',currency:s.stripe.currency||'USD'});
+  const divisor=10**money.resolvedOptions().maximumFractionDigits;
+  $('price').textContent=s.stripe.status==='ready'?'One-time Stripe test price: '+money.format(s.stripe.amount/divisor):'Billing: '+s.stripe.status+(s.stripe.error?' — '+s.stripe.error:'');
+  $('buy').disabled=s.stripe.status!=='ready';
+  $('payment').textContent=e.entitled?'Verified paid access':'No verified paid access';
+  $('run').disabled=!e.entitled||s.artifact.status!=='ready';
+}catch(_){$('payment').textContent='Cannot reach the service. Retry by refreshing.'}
+}
 $('buy').onclick=async()=>{ $('buy').disabled=true;try{let r=await fetch('/api/checkout',{method:'POST'}),d=await r.json();if(!r.ok||!d.url)throw Error(d.error||'Checkout unavailable');location.assign(d.url)}catch(e){$('payment').textContent=e.message;$('buy').disabled=false}};
 $('run').onclick=async()=>{try{let input=JSON.parse($('input').value);$('result').textContent='Running…';let r=await fetch('/api/product/run',{method:'POST',headers:{'content-type':'application/json'},body:format({input})});$('result').textContent=format(await r.json())}catch(e){$('result').textContent='Invalid JSON input or connection error: '+e.message}};
-if(location.pathname==='/success'){let id=new URLSearchParams(location.search).get('session_id');$('payment').textContent='Verifying with Stripe…';if(id)get('/api/checkout/verify?session_id='+encodeURIComponent(id)).then(({data})=>{$('payment').textContent=data.entitled?'Stripe test payment verified; access unlocked':data.error||'Payment pending verification';return load()}).catch(()=>$('payment').textContent='Verification unavailable; retry by refreshing.')}else if(location.pathname==='/cancel'){$('payment').textContent='Checkout canceled. No access granted.';load()}else load();
+load();
 </script></html>`, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
@@ -94,7 +109,8 @@ export default {
     if (path === '/api/stripe/webhook' && method === 'POST') return handleWebhook(request, env);
     if (path === '/api/entitlement' && method === 'GET') return handleEntitlement(request, env);
     if (path === '/api/product/run' && method === 'POST') return run(request, env);
-    if (['/', '/product', '/success', '/cancel'].includes(path) && method === 'GET') return page();
+    if (path === '/product' && method === 'GET') return page();
+    if (env.ASSETS && (method === 'GET' || method === 'HEAD')) return env.ASSETS.fetch(request);
     return json({ error: 'Not found' }, 404);
   }
 };

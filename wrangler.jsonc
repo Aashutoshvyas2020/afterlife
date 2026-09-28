@@ -15,7 +15,13 @@
 			"migrations_dir": "migrations"
 		}
 	],
+	"assets": {
+		"directory": "./out",
+		"binding": "ASSETS",
+		"run_worker_first": ["/api/*", "/health", "/product*"]
+	},
 	"vars": {
-		"STRIPE_PRICE_ID": "price_1UKilfPBBXfqZsxXOxIbQmMu"
+		"STRIPE_PRICE_ID": "price_1UKilfPBBXfqZsxXOxIbQmMu",
+		"PUBLIC_URL": "https://afterlife.afterlife-worker.workers.dev"
 	}
 }

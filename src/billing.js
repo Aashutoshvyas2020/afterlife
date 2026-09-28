@@ -140,10 +140,11 @@ export async function handleCheckout(request, env) {
 
     const form = new URLSearchParams();
     form.set('mode', 'payment');
+    form.set('payment_method_types[0]', 'card');
     form.set('line_items[0][price]', env.STRIPE_PRICE_ID);
     form.set('line_items[0][quantity]', '1');
-    form.set('success_url', `${origin}/success?session_id={CHECKOUT_SESSION_ID}`);
-    form.set('cancel_url', `${origin}/cancel`);
+    form.set('success_url', `${origin}/checkout/success/?session_id={CHECKOUT_SESSION_ID}`);
+    form.set('cancel_url', `${origin}/checkout/cancelled/`);
     form.set('metadata[checkout_key]', checkoutKey);
     const session = await stripeRequest(env, '/checkout/sessions', {
       method: 'POST',
