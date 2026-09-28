@@ -32,9 +32,9 @@ logic inputs. Uploaded PDB contents are parsed as structure data only.
 - SVG attributes are normalized for React, and focus outlines are provided.
 - Integration badges say Simulated rather than Connected.
 - Analysis and checkout copy distinguish demo heuristics from fpocket computation
-  and actual payments. There is no real billing or validated pocket analysis.
+  and actual payments. PocketScan has no real billing or validated pocket analysis. The separate DNA Feature Map product uses the real Worker billing layer.
 - Demo access uses the existing sessionStorage key, `pocketscan-demo-pro`.
-- Direct entry into `/checkout/success` cannot unlock access.
+- Direct entry into `/checkout/success` cannot unlock access; that route now verifies real Stripe test checkout for DNA Feature Map.
 - Viewer spinning is stopped when its view unmounts.
 
 ## Backend handoff change
@@ -63,7 +63,7 @@ while the console is unmounted and resume from their saved elapsed time.
 Both visible screens offer Reset demo. It cancels active work, resets the
 portfolio and Pro access, and clears PocketScan history and locally stored PDBs.
 It leaves unrelated browser data untouched. The console command menu routes
-product/upgrade actions to `/` and `/checkout`; the older embedded product flow
+product/upgrade actions to `/` and `/demo/checkout` through the wrapper bridge; the older embedded product flow
 is no longer reachable from those commands. PocketScan has a return-to-console
 control. These behavior changes are reapplied by `scripts/design_reliability.py`
 every time designs are imported.
@@ -71,3 +71,10 @@ every time designs are imported.
 Sample/history fetches use AbortController and request IDs. Uploaded-file reads
 also check request IDs, so cancellation, unmount, or a newer input invalidates
 late results even when the underlying read cannot be interrupted.
+
+## Combined project
+
+The original dashboard and PocketScan templates (including its landing page) remain
+unchanged from the UI branch. A narrow service strip links to `/product` without
+replacing either layout. DNA Feature Map and real Stripe checkout are separate routes;
+PocketScan continues using its original demo modal at `/demo/checkout`.

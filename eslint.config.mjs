@@ -9,6 +9,10 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    ".venv/**",
+    ".wrangler/**",
+    "output/**",
+    ".playwright-cli/**",
     "public/vendor/**",
     "out/**",
     "build/**",

@@ -1,2 +1,2 @@
-import { DesignScreen } from "@/components/design-screen";
-export default function Checkout() { return <DesignScreen screen="pocketscan" checkout="open" />; }
+import { Checkout } from "@/components/checkout";
+export default function CheckoutPage() { return <Checkout screen="checkout" />; }

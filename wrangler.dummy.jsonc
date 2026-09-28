@@ -1,0 +1,7 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "afterlife-dummy",
+  "main": "src/dummy.js",
+  "compatibility_date": "2026-09-28",
+  "workers_dev": true
+}

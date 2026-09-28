@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ComponentType } from "react";
 import { useRouter } from "next/navigation";
+import { ServiceStrip } from "@/components/service-strip";
 import * as session from "@/lib/demo-session";
 import consoleDesign from "@/designs/console.json";
 import pocketDesign from "@/designs/pocketscan.json";
@@ -23,5 +24,5 @@ export function DesignScreen({ screen, checkout }: { screen: "console" | "pocket
   }, [screen]);
   if (error) return <main className="design-loading">The preview could not load. <button onClick={() => window.location.reload()}>Reload</button></main>;
   if (!View) return <main className="design-loading" role="status">Loading {screen === "console" ? "Afterlife" : "PocketScan"}…</main>;
-  return <div className="design-export"><View startView="portfolio" startRoute={checkout ? "app" : "landing"} checkout={checkout} demo={{ ...session, navigate: href => router.push(href) }} /></div>;
+  return <><ServiceStrip console={screen === "console"} /><div className="design-export"><View startView="portfolio" startRoute={checkout ? "app" : "landing"} checkout={checkout} demo={{ ...session, navigate: href => router.push(href === "/checkout" ? "/demo/checkout/" : href) }} /></div></>;
 }
