@@ -3,6 +3,7 @@ Run with the directory containing the user's HTML exports as the first argument.
 """
 from pathlib import Path
 import json, re, sys
+from design_reliability import improve
 source = Path(sys.argv[1])
 root = Path(__file__).resolve().parents[1]
 # Use the supplied template renderer with Next's React, without its standalone
@@ -70,4 +71,5 @@ for name, filename in [('console', 'Afterlife Console.dc.html'), ('pocketscan', 
         logic = logic.replace('if (!el) { this.hero = null;', 'if (!el) { this.hero?.spin(false); this.hero?.clear(); this.hero = null;')
         logic = logic.replace('if (!el) { this.viewer = null;', 'if (!el) { this.viewer?.spin(false); this.viewer?.clear(); this.viewer = null;')
         logic = logic.replace('this.clearTimers(); clearTimeout(this.toastT);', 'this.clearTimers(); clearTimeout(this.toastT); this.hero?.spin(false); this.viewer?.spin(false);')
+    template, logic = improve(name, template, logic)
     (root / ('src/designs/' + name + '.json')).write_text(json.dumps({'template':template, 'js':logic}, indent=2) + '\n')

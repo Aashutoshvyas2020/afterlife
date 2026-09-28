@@ -41,8 +41,10 @@ logic inputs. Uploaded PDB contents are parsed as structure data only.
 
 The source exports contain their own prototype state machines. The adapters in
 `src/lib/portfolio.ts` and `src/lib/protein-analysis.ts` are retained, but **are not
-currently driving the imported screens**. Their existing tests do not validate
-this imported UI. Use browser checks for the visible flows, and replace the
+currently driving the imported screens**. The original adapter tests do not validate
+this imported UI. `tests/design-flows.test.mjs` now exercises the imported
+logic directly, including persistence, upgrades, full reset, cancellation, and
+stale-request handling. Browser checks still cover rendered controls. Replace the
 prototype logic with agreed real APIs when integrating the backend. Do not
 assume passing adapter tests means a real provider is connected.
 
@@ -50,3 +52,22 @@ The source PocketScan preview uses structure-derived heuristic pocket positions
 and scores, not fpocket. It stores scan history and small uploaded structures
 locally in the browser; there is no upload to a backend. Account controls can
 clear this history. Both scientific results and paid access remain demo-only.
+
+## Demo reliability
+
+`src/lib/demo-session.ts` owns the shared Pro flag and saved portfolio run in
+sessionStorage, with an in-memory fallback if storage is restricted. Completed
+runs survive navigation and refresh in the same tab. In-progress runs pause
+while the console is unmounted and resume from their saved elapsed time.
+
+Both visible screens offer Reset demo. It cancels active work, resets the
+portfolio and Pro access, and clears PocketScan history and locally stored PDBs.
+It leaves unrelated browser data untouched. The console command menu routes
+product/upgrade actions to `/` and `/checkout`; the older embedded product flow
+is no longer reachable from those commands. PocketScan has a return-to-console
+control. These behavior changes are reapplied by `scripts/design_reliability.py`
+every time designs are imported.
+
+Sample/history fetches use AbortController and request IDs. Uploaded-file reads
+also check request IDs, so cancellation, unmount, or a newer input invalidates
+late results even when the underlying read cannot be interrupted.
