@@ -171,11 +171,11 @@ async function refresh(env, row) {
     if (!kind) break;
     const messages = Array.isArray(list.items) ? list.items : [], result = parseAgentResult(messages);
     stages.push({ kind, label: labels[kind], taskId: task.id, status: task.status, startedAt: normalizeAgentTime(task.created_at), resultStatus: task.status === 'success' ? result?.status : undefined });
-    events.push({ id: task.id, time: normalizeAgentTime(task.created_at), text: `${labels[kind]} · ${task.status}`, status: task.status });
+    events.push({ stage: kind, id: task.id, time: normalizeAgentTime(task.created_at), text: `${labels[kind]} · ${task.status}`, status: task.status });
     for (const msg of messages.filter(m => m.role === 'assistant' && typeof m.content === 'string' && m.content.trim()).slice(-5)) {
       // Only agent narration; never publish tool commands, tool responses, or internal secrets.
       if (!isAgentNarration(msg.content)) continue;
-      events.push({ id: msg.id, time: normalizeAgentTime(msg.created_at), text: safeText(msg.content, 700), status: 'message' });
+      events.push({ stage: kind, id: msg.id, time: normalizeAgentTime(msg.created_at), text: safeText(msg.content, 700), status: 'message' });
     }
     const candidateResult = result?.candidates || handoff(messages)?.candidates;
     if (kind === 'scout') candidates = (Array.isArray(candidateResult) ? candidateResult : []).filter(c => c && typeof c === 'object').slice(0, 10).map(c => ({
@@ -193,7 +193,7 @@ async function refresh(env, row) {
       if (recovery) {
         stages.at(-1).handoffRecovery = recovery.state;
         if (recovery.state === 'requested' || recovery.state === 'claimed') {
-          events.push({ id: `handoff-${task.id}`, time: new Date(recovery.created_at * 1000).toISOString(), text: `${labels[kind]} · continuing the missing native handoff`, status: 'message' });
+          events.push({ stage: kind, id: `handoff-${task.id}`, time: new Date(recovery.created_at * 1000).toISOString(), text: `${labels[kind]} · continuing the missing native handoff`, status: 'message' });
           if (now() - recovery.created_at < 600) { stages.at(-1).status = 'running'; stages.at(-1).resultStatus = undefined; }
         }
       }
@@ -201,7 +201,7 @@ async function refresh(env, row) {
     if (!next && task.status === 'fail') {
       const recovery = await recoverBootstrap(env, row, task, messages);
       if (recovery && ['claimed', 'requested'].includes(recovery.state)) {
-        events.push({ id: `bootstrap-${task.id}`, time: new Date(recovery.created_at * 1000).toISOString(), text: `${labels[kind]} · Retrying temporary provider limit`, status: 'message' });
+        events.push({ stage: kind, id: `bootstrap-${task.id}`, time: new Date(recovery.created_at * 1000).toISOString(), text: `${labels[kind]} · Retrying temporary provider limit`, status: 'message' });
         if (now() - recovery.created_at < 600) { stages.at(-1).status = 'running'; stages.at(-1).resultStatus = undefined; }
       }
     }
