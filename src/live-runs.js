@@ -12,6 +12,17 @@ export async function brainbase(env, path, body) {
   if (!response.ok) throw new Error(`Brainbase returned ${response.status}`);
   return response.json();
 }
+export async function taskMessages(env, taskId) {
+  // Brainbase's live OpenAPI exposes a prefix limit (default 200), not a cursor
+  // or offset. Grow that documented prefix until it contains the entire history.
+  // Preserve the first native input for retries and the newest result together.
+  for (let limit = 200; limit <= 12800; limit *= 2) {
+    const list = await brainbase(env, `tasks/${taskId}/messages?limit=${limit}`);
+    if (!Array.isArray(list.items)) throw Error('Brainbase returned an invalid message history');
+    if (list.items.length < limit) return list;
+  }
+  throw Error('Agent history exceeds the supported message window; incomplete results were not used');
+}
 function unwrapResult(result) {
   for (let depth = 0; depth < 4 && result && typeof result === 'object' && !Array.isArray(result); depth++) {
     if (Array.isArray(result.candidates) || typeof result.decision === 'string' || typeof result.status === 'string') return result;
@@ -135,7 +146,7 @@ export async function recoverBootstrap(env, row, task, messages = []) {
   if (!claim.meta.changes) return env.DB.prepare('SELECT state,created_at,error FROM afterlife_handoff_recovery WHERE task_id=?1').bind(key).first();
   try {
     const [current, list] = await Promise.all([
-      brainbase(env, `tasks/${task.id}`), brainbase(env, `tasks/${task.id}/messages?limit=200`),
+      brainbase(env, `tasks/${task.id}`), taskMessages(env, task.id),
     ]);
     if (!transientBootstrapLimit(current) || pendingBootstrapContinuation(current, list.items || [])) {
       await env.DB.prepare('DELETE FROM afterlife_handoff_recovery WHERE task_id=?1').bind(key).run();
@@ -165,7 +176,7 @@ async function refresh(env, row) {
   let taskId = row.root_task_id, candidates = [], decision = null, repair = null, product = null, productTask = null;
   for (let depth = 0; depth < 4 && taskId; depth++) {
     const [task, list, children] = await Promise.all([
-      brainbase(env, `tasks/${taskId}`), brainbase(env, `tasks/${taskId}/messages?limit=200`), brainbase(env, `tasks?parent_task_id=${taskId}&limit=20`),
+      brainbase(env, `tasks/${taskId}`), taskMessages(env, taskId), brainbase(env, `tasks?parent_task_id=${taskId}&limit=20`),
     ]);
     const kind = Object.keys(labels).find(key => agents[key] === task.agent_id);
     if (!kind) break;

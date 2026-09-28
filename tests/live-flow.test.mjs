@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import agents from '../agents/live-config.json' with { type: 'json' };
-import { parseAgentResult, validPreview, handleRuns, getRun, recoverHandoff, recoverBootstrap, normalizeAgentTime, isAgentNarration } from '../src/live-runs.js';
+import { parseAgentResult, taskMessages, validPreview, handleRuns, getRun, recoverHandoff, recoverBootstrap, normalizeAgentTime, isAgentNarration } from '../src/live-runs.js';
 import { proxyProduct, handleProductBilling } from '../src/live-products.js';
 
 const id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -327,4 +327,35 @@ test('bootstrap retry rechecks the latest status before resuming a task', async 
     return Response.json(String(input).includes('/messages?') ? { items: [] } : { ...bootstrapTask, status: 'running' });
   });
   assert.equal(await recoverBootstrap({ DB: recoveryDb(), BRAINBASE_TOKEN: 'synthetic' }, { id }, bootstrapTask), null);
+});
+
+test('long Brainbase histories expand the documented prefix and preserve first input plus latest result', async t => {
+  const messages = Array.from({ length: 501 }, (_, index) => ({ id: `message${index}`, role: 'tool', content: 'Tool progress' }));
+  messages[0] = { id: 'initial', role: 'user', content: 'Original repository and complete reproduction' };
+  messages[500] = { id: 'final', role: 'assistant', content: '{"status":"READY","repository":"org/repo"}' };
+  const limits = [];
+  t.mock.method(globalThis, 'fetch', async input => {
+    const url = new URL(input), limit = Number(url.searchParams.get('limit'));
+    assert.equal(url.pathname, '/v2/tasks/task-with-long-history/messages');
+    assert.equal(url.searchParams.has('cursor'), false);
+    assert.equal(url.searchParams.has('offset'), false);
+    limits.push(limit);
+    return Response.json({ items: messages.slice(0, limit) });
+  });
+  const history = await taskMessages({ BRAINBASE_TOKEN: 'synthetic' }, 'task-with-long-history');
+  assert.deepEqual(limits, [200, 400, 800]);
+  assert.equal(history.items[0].content, messages[0].content);
+  assert.equal(history.items.at(-1).id, 'final');
+  assert.equal(parseAgentResult(history.items).status, 'READY');
+});
+
+test('an exact200message history checks for a later result without dropping or duplicating messages', async t => {
+  const messages = Array.from({ length: 200 }, (_, index) => ({ id: `message${index}` }));
+  const limits = [];
+  t.mock.method(globalThis, 'fetch', async input => {
+    limits.push(Number(new URL(input).searchParams.get('limit')));
+    return Response.json({ items: messages });
+  });
+  assert.equal((await taskMessages({ BRAINBASE_TOKEN: 'synthetic' }, 'exact-boundary')).items.length, 200);
+  assert.deepEqual(limits, [200, 400]);
 });
