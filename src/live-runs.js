@@ -145,7 +145,13 @@ export async function recoverBootstrap(env, row, task, messages = []) {
     // the initial native task input, not a later generic retry/steering message.
     const originalInput = (list.items || []).find(message => message.role === 'user' && typeof message.content === 'string' && message.content.trim())?.content;
     if (!originalInput) throw Error('Original task input is unavailable for initialization retry');
-    const response = await brainbase(env, `tasks/${task.id}/messages`, { messages: [{ role: 'user', content: 'Resume your original assigned task after the temporary provider credential-verification rate limit during initialization. The sandbox did not start. Follow your existing agent instructions and the original task input below; preserve the selected repository and native workflow. This is the single automatic retry for this initialization failure.\n\nOriginal task input (verbatim):\n\n' + originalInput }], run: true });
+    if (!current.agent_id) throw Error('Agent identity is unavailable for initialization retry');
+    // Failed provider linking can also omit the agent's system prompt. Recover
+    // only the canonical instructions field; never forward secrets or metadata.
+    const agent = await brainbase(env, `agents/${current.agent_id}`);
+    const instructions = agent.instructions;
+    if (typeof instructions !== 'string' || !instructions.trim()) throw Error('Agent instructions are unavailable for initialization retry');
+    const response = await brainbase(env, `tasks/${task.id}/messages`, { messages: [{ role: 'user', content: 'Resume your original assigned task after the temporary provider credential-verification rate limit during initialization. The sandbox did not start. Follow the canonical agent instructions and original task input below; preserve the selected repository and native workflow. This is the single automatic retry for this initialization failure.\n\nCanonical agent instructions (verbatim):\n\n' + instructions + '\n\nOriginal task input (verbatim):\n\n' + originalInput }], run: true });
     if (response.run_started === false) throw Error('Brainbase did not start the initialization retry');
     await env.DB.prepare("UPDATE afterlife_handoff_recovery SET state='requested',updated_at=?1 WHERE task_id=?2").bind(now(), key).run();
     return { state: 'requested', created_at: timestamp };
@@ -218,7 +224,9 @@ async function refresh(env, row) {
       ]);
       if (!healthResponse.ok || !manifestResponse.ok) throw Error('Preview is not responding');
       const health = await healthResponse.json(), manifest = await manifestResponse.json();
-      if (health.status !== 'ready' || typeof manifest.name !== 'string' || !manifest.name.trim() || typeof manifest.repository !== 'string') throw Error('Product health contract is incomplete');
+      // Preview providers may reserve /health and return ok before the app starts.
+      // Source identity and the actual example execution below decide readiness.
+      if (!['ok', 'ready'].includes(health.status) || typeof manifest.name !== 'string' || !manifest.name.trim() || typeof manifest.repository !== 'string') throw Error('Product health contract is incomplete');
       const selectedRepository = decision?.repository || repair?.repository;
       if (!selectedRepository || manifest.repository.toLowerCase() !== selectedRepository.toLowerCase() || (repair?.repository && manifest.repository.toLowerCase() !== repair.repository.toLowerCase())) throw Error('Product repository does not match the funded recovery');
       if (!repair?.revision || manifest.sourceRevision !== repair.revision) throw Error('Product revision does not match the verified recovery');
@@ -279,7 +287,7 @@ export async function handleRuns(request, env) {
     if (!created.meta.changes) return json({ error: 'A run is already active, or today’s demo limit has been reached. Open the latest run to follow its progress.' }, 409);
     try {
       const task = await brainbase(env, 'tasks', { agent_id: agents.scout, title: `Afterlife: ${thesis.slice(0, 70)}`, metadata: { afterlife_run_id: runId, orchestration_id: agents.orchestration }, auto_run: true,
-        initial_messages: [{ role: 'user', content: `Find three real overlooked or neglected repositories for this opportunity: ${thesis}\nNo predetermined winner. Verify current GitHub metadata and licensing. Prefer a lightweight CPU capability that can become a useful human web tool quickly. The downstream pipeline will repair, verify and package the selected capability. Your role is ONLY discovery and the native handoff to the Investment Committee. Invoke your native handoff tool once with complete evidence, then return the candidates JSON immediately. Do not monitor downstream tasks, build a product, or deploy anything yourself. No paid infrastructure outside this sandbox.` }] });
+        initial_messages: [{ role: 'user', content: `Find three real open-source repositories for this sector or opportunity: ${thesis}\nNo predetermined winner. Do not prefer old, abandoned, neglected, low-star or inactive repositories: maintained and popular projects are equally eligible. Verify a license that allows commercial use; unknown or noncommercial licenses cannot be funded. Rank sector relevance, user value and implementation feasibility. Record maintenance context without using age as an investment advantage. Prefer a lightweight CPU capability that can become a useful human web tool quickly. The downstream pipeline will repair, verify and package the selected capability. Your role is ONLY discovery and the native handoff to the Investment Committee. Invoke your native handoff tool once with complete evidence, then return the candidates JSON immediately. Do not monitor downstream tasks, build a product, or deploy anything yourself. No paid infrastructure outside this sandbox.` }] });
       await env.DB.prepare("UPDATE afterlife_runs SET root_task_id=?1,state='running' WHERE id=?2").bind(task.id, runId).run();
       return json({ id: runId, state: 'running' }, 201);
     } catch (error) { await env.DB.prepare("UPDATE afterlife_runs SET state='failed' WHERE id=?1").bind(runId).run(); throw error; }

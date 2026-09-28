@@ -37,7 +37,7 @@ test('malformed live-run requests return client errors without starting agents',
   assert.equal(response.status, 400);
 });
 
-test('native four-agent chain requires matching verified product source', async t => {
+test('provider healthok alone cannot launch; source and real execution must verify', async t => {
   const row = { id, thesis: 'A real opportunity', state: 'running', root_task_id: 'task0', created_at: 0, updated_at: 0 };
   const DB = database(row);
   let repository = 'wrong/repo', executions = 0, executionHealthy = false, hasExample = false;
@@ -50,7 +50,7 @@ test('native four-agent chain requires matching verified product source', async 
         assert.deepEqual(JSON.parse(init.body), { input: { text: 'real example' } });
         return executionHealthy ? Response.json({ success: true, result: 'computed result' }) : Response.json({ error: 'Broken adapter' }, { status: 500 });
       }
-      return Response.json(url.pathname === '/health' ? { status: 'ready' } : { ...product, repository, sourceRevision: 'a'.repeat(40), priceCents: 500.4, ...(hasExample ? { exampleInput: { text: 'real example' } } : {}) });
+      return Response.json(url.pathname === '/health' ? { status: 'ok' } : { ...product, repository, sourceRevision: 'a'.repeat(40), priceCents: 500.4, ...(hasExample ? { exampleInput: { text: 'real example' } } : {}) });
     }
     if (url.pathname.includes('/machines/')) return Response.json({ url: 'https://preview.brainbaselabs.space' });
     const tasks = ['scout', 'investment', 'resurrection', 'product'].map((kind, i) => ({ id: `task${i}`, agent_id: agents[kind], status: 'success', machine_id: 'machine', created_at: new Date().toISOString() }));
@@ -289,15 +289,19 @@ test('failed snapshots refresh after30seconds and ignore stale FAILED output dur
   assert.equal(refreshed.stages.at(-1).resultStatus, undefined);
 });
 
-const bootstrapTask = { id: 'product-task', status: 'fail', status_info: { phase: 'initialize', sandbox_initialized: false, terminal_at: '2026-09-28T21:30:00Z', error: 'BootstrapStepError: ThrottlerException: Too Many Requests' } };
+const bootstrapTask = { id: 'product-task', agent_id: agents.product, status: 'fail', status_info: { phase: 'initialize', sandbox_initialized: false, terminal_at: '2026-09-28T21:30:00Z', error: 'BootstrapStepError: ThrottlerException: Too Many Requests' } };
 test('temporary bootstrap provider limits retry the same native task once under concurrency', async t => {
+  const canonicalInstructions = 'Serve the real recovered software on 0.0.0.0:8080 with /health, /afterlife.json and /api/run.';
   const originalInput = '{"repositoryUrl":"https://github.com/arbitrary/recovered-project","reproduction":"Original verified setup commands\\nOriginal real input/output"}';
   const env = { DB: recoveryDb(), BRAINBASE_TOKEN: 'synthetic' }; let starts = 0;
   t.mock.method(globalThis, 'fetch', async (input, init) => {
+    if (String(input).includes('/agents/')) return Response.json({ instructions: canonicalInstructions, secrets: { private: 'never-forward-this-secret' } });
     if (init.method === 'POST') {
       starts++;
       assert.match(String(input), /tasks\/product-task\/messages$/);
       assert.match(JSON.parse(init.body).messages[0].content, /single automatic retry/);
+      assert.ok(JSON.parse(init.body).messages[0].content.includes(canonicalInstructions));
+      assert.doesNotMatch(init.body, /never-forward-this-secret/);
       assert.ok(JSON.parse(init.body).messages[0].content.endsWith(originalInput), 'The new runtime must receive the complete original payload verbatim');
       return Response.json({ run_started: true });
     }

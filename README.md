@@ -1,11 +1,11 @@
 # Afterlife
 
-Afterlife discovers overlooked open-source repositories and turns a selected capability into a usable, hosted product. The public console starts real Brainbase agents; it has no preset repository, winner, or timed success sequence.
+Afterlife discovers useful open-source repositories and turns a selected capability into a usable, hosted product. The public console starts real Brainbase agents; it has no preset repository, winner, or timed success sequence.
 
 ## Current flow
 
 1. Describe an opportunity or include candidate GitHub URLs.
-2. **Scout** inspects current repository metadata, licenses and source.
+2. **Scout** searches the chosen sector and inspects current repository metadata, licenses and source. Maintained and popular projects are equally eligible; age and abandonment receive no preference. Only verified licenses allowing commercial use can pass.
 3. **Investment manager** funds one candidate, or passes on all of them.
 4. **Resurrection engineer** runs the original software, makes the necessary repairs/adaptations, verifies two real inputs and hands off reproducible instructions.
 5. **Product engineer** builds a human input form around that capability in its own sandbox, starts a server and tests it.
