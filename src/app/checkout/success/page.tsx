@@ -1,2 +1,2 @@
-import { DemoCheckout } from "@/components/demo-checkout";
-export default function SuccessPage() { return <DemoCheckout screen="success" />; }
+import { DesignScreen } from "@/components/design-screen";
+export default function Success() { return <DesignScreen screen="pocketscan" checkout="success" />; }

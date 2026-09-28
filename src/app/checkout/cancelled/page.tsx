@@ -1,2 +1,2 @@
-import { DemoCheckout } from "@/components/demo-checkout";
-export default function CancelledPage() { return <DemoCheckout screen="cancelled" />; }
+import { DesignScreen } from "@/components/design-screen";
+export default function Cancelled() { return <DesignScreen screen="pocketscan" checkout="cancelled" />; }

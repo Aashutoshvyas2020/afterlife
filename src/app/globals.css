@@ -210,3 +210,10 @@ body {
 .checkout-icon { display:block; font-size:38px; color:var(--mint); margin-top:25px; }
 .notice { padding:12px; background:#253c2d; color:var(--mint); border-radius:6px; font-size:12px; }
 @media(max-width:640px) { .checkout-shell { margin:28px auto; padding:24px; } .checkout-shell h1 { font-size:30px; } }
+
+/* Imported designs own their layouts; legacy mock components remain available. */
+.design-export { min-height:100vh; font-family:var(--font-geist-sans),sans-serif; }
+.design-export :is(button,input,select) { font:inherit; }
+.design-export :is(button,a,input,select):focus-visible { outline:2px solid #ff6b2c !important; outline-offset:3px; }
+.design-export :is(svg,canvas) { display:inline-block; }
+.design-loading { padding:40px; color:#999; background:#000; font:14px var(--font-geist-sans),sans-serif; min-height:100vh; }

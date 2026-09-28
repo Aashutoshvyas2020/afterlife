@@ -1,5 +1,9 @@
 # Afterlife UI integration handoff
 
+> UI update: the current routes render the supplied design exports. See
+> [DESIGN-IMPORT.md](DESIGN-IMPORT.md) for their runtime and integration boundary.
+> The adapters below are retained but do not currently drive those screens.
+
 Everything in this checkout currently uses local demo data. No Brainbase,
 fpocket process, deployment API, or Stripe request is made.
 
