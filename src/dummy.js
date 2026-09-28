@@ -1,4 +1,4 @@
-export default {
+const worker = {
   fetch(request) {
     const url = new URL(request.url);
     if (url.pathname === "/health") {
@@ -7,3 +7,4 @@ export default {
     return Response.json({ error: "not_found" }, { status: 404 });
   },
 };
+export default worker;

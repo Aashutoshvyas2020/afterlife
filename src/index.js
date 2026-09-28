@@ -9,7 +9,7 @@ async function artifactHealth(env) {
     if (base.protocol !== 'https:' && base.hostname !== 'localhost') throw Error('Artifact URL must be HTTPS');
     const response = await fetch(new URL(env.CAPABILITY_HEALTH_PATH || '/health', base), { signal: AbortSignal.timeout(5000) });
     return response.ok ? { status: 'ready' } : { status: 'failed', error: `Artifact health returned ${response.status}` };
-  } catch (error) {
+  } catch {
     return { status: 'failed', error: 'Artifact health check failed' };
   }
 }
@@ -25,7 +25,7 @@ async function pricing(env) {
     const price = await response.json();
     if (!price.active || price.livemode || price.type !== 'one_time' || !price.unit_amount || !price.currency) return { status: 'failed', error: 'Expected an active one-time test price' };
     return { status: 'ready', mode: 'test', priceId: price.id, amount: price.unit_amount, currency: price.currency.toUpperCase() };
-  } catch (_) { return { status: 'failed', error: 'Stripe price lookup failed' }; }
+  } catch { return { status: 'failed', error: 'Stripe price lookup failed' }; }
 }
 
 async function status(env) {
@@ -47,14 +47,14 @@ async function run(request, env) {
   try {
     base = new URL(env.CAPABILITY_BASE_URL);
     if (base.protocol !== 'https:' && base.hostname !== 'localhost') throw Error('invalid artifact URL');
-  } catch (_) { return json({ success: false, error: 'Recovered artifact URL is invalid' }, 503); }
+  } catch { return json({ success: false, error: 'Recovered artifact URL is invalid' }, 503); }
   let body;
   try {
     const text = await request.text();
     if (text.length > 32768) return json({ success: false, error: 'Input too large' }, 413);
     body = JSON.parse(text);
     if (!body || typeof body !== 'object' || Array.isArray(body) || !Object.hasOwn(body, 'input')) throw Error('invalid input');
-  } catch (_) { return json({ success: false, error: 'Expected JSON object with input' }, 400); }
+  } catch { return json({ success: false, error: 'Expected JSON object with input' }, 400); }
   try {
     const upstream = await fetch(new URL(env.CAPABILITY_RUN_PATH || '/run', base), {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body.input), signal: AbortSignal.timeout(20000)
@@ -99,7 +99,7 @@ load();
 </script></html>`, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
-export default {
+const worker = {
   async fetch(request, env) {
     const url = new URL(request.url), path = url.pathname, method = request.method;
     if (path === '/health' && method === 'GET') return json({ status: 'live', service: 'afterlife', artifact: await artifactHealth(env) });
@@ -109,8 +109,9 @@ export default {
     if (path === '/api/stripe/webhook' && method === 'POST') return handleWebhook(request, env);
     if (path === '/api/entitlement' && method === 'GET') return handleEntitlement(request, env);
     if (path === '/api/product/run' && method === 'POST') return run(request, env);
-    if (path === '/product' && method === 'GET') return page();
+    if ((path === '/product' || path === '/product/') && method === 'GET') return page();
     if (env.ASSETS && (method === 'GET' || method === 'HEAD')) return env.ASSETS.fetch(request);
     return json({ error: 'Not found' }, 404);
   }
 };
+export default worker;
