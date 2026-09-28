@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import worker from '../src/index.js';
+import worker from '../src/legacy-worker.js';
 import { fakeDb } from './helpers/billing.mjs';
 
 const sample = JSON.parse(readFileSync(new URL('../person1/build/dna-feature-map/verification/input_alpha.json', import.meta.url)));

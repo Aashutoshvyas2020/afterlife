@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker from '../src/index.js';
+import worker from '../src/legacy-worker.js';
 import { createHash } from 'node:crypto';
 
 const token = 'a'.repeat(64);

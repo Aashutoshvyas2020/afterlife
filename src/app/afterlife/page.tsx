@@ -1,5 +1,2 @@
-import { DesignScreen } from "@/components/design-screen";
-
-export default function Afterlife() {
-  return <DesignScreen screen="console" />;
-}
+import { LiveConsole } from '@/components/live-console';
+export default function Afterlife(){return <LiveConsole/>;}

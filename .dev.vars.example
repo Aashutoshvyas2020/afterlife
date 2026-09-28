@@ -1,8 +1,11 @@
-# Copy to .dev.vars for local test billing; never commit that file.
+# Copy to .dev.vars for local development; never commit real credentials.
+# Production uses Worker secrets, provisioned separately with wrangler secret put.
 STRIPE_SECRET_KEY=sk_test_REPLACE
-STRIPE_WEBHOOK_SECRET=whsec_REPLACE
-# Use a fresh Stripe CLI listener secret for local webhooks.
-# The non-secret price ID is set in wrangler.jsonc. Override only if needed:
-# STRIPE_PRICE_ID=price_REPLACE
-# Remote renderer deployments require the same secret on Worker and Python service:
-# CAPABILITY_AUTH_TOKEN=REPLACE
+# Live generated products create their own checkout price; no fixed price ID required.
+# The preserved legacy checkout also uses STRIPE_WEBHOOK_SECRET and STRIPE_PRICE_ID.
+
+# Live orchestration (server only):
+BRAINBASE_TOKEN=REPLACE
+# Deployment credentials stay on your machine, never in client code or Worker assets:
+# CLOUDFLARE_ACCOUNT_ID=REPLACE
+# CLOUDFLARE_API_TOKEN=REPLACE

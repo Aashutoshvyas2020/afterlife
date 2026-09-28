@@ -1,3 +1,5 @@
+> Historical integration record. The public app now runs sector-driven discovery and generates new products. See [the current README](../README.md) for active routes, setup and limitations. Fixed PocketScan/DNA demo routes are no longer public.
+
 # Final integration review — 2026-09-28
 
 ## Outcome

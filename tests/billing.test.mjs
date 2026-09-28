@@ -1,7 +1,7 @@
 import { fakeDb } from './helpers/billing.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker from '../src/index.js';
+import worker from '../src/legacy-worker.js';
 import { createHash, createHmac } from 'node:crypto';
 
 const envBase = {

@@ -1,2 +1,2 @@
-import { RecoveredProduct } from "@/components/recovered-product";
-export default function ProductPage() { return <RecoveredProduct />; }
+import { LiveProductPage } from '@/components/live-product';
+export default function ProductPage(){return <LiveProductPage/>;}

@@ -1,45 +1,54 @@
 # Afterlife
 
-Afterlife explores turning overlooked open-source software into usable, paid products.
-This checkout combines the three hackathon branches: Brainbase recovery, the original
-Afterlife/PocketScan UI, and Cloudflare + Stripe test billing.
+Afterlife discovers overlooked open-source repositories and turns a selected capability into a usable, hosted product. The public console starts real Brainbase agents; it has no preset repository, winner, or timed success sequence.
 
-## What works
+## Current flow
 
-- **`/afterlife/`** — the supplied Afterlife Console design, with its explicitly simulated
-  fpocket investment/launch walkthrough and a link to the real recovered product.
-- **`/`** — the supplied PocketScan landing page and app. Protein pocket results and its
-  Pro upgrade remain a labeled demo; the 3D structures are real local sample files.
-- **`/product/`** — DNA Feature Map: JSON input → real DnaFeaturesViewer Python renderer →
-  downloadable PNG. Uses Person 1’s verified source revision and canonical example.
-- **`/checkout/`** — Person 3’s hosted Stripe **test** checkout, with server-verified browser
-  access. Requires a connected renderer and configured test keys.
-- **`/demo/checkout/`** — PocketScan’s original simulated upgrade. It cannot grant access
-  to the recovered product.
+1. Describe an opportunity or include candidate GitHub URLs.
+2. **Scout** inspects current repository metadata, licenses and source.
+3. **Investment manager** funds one candidate, or passes on all of them.
+4. **Resurrection engineer** runs the original software, makes the necessary repairs/adaptations, verifies two real inputs and hands off reproducible instructions.
+5. **Product engineer** builds a human input form around that capability in its own sandbox, starts a server and tests it.
+6. Cloudflare verifies the sandbox health, source manifest, and an actual example execution before exposing the temporary product URL. Each product gets a real Stripe **test** checkout.
 
-Brainbase Scout → Investment → Resurrection evidence is recorded from Person 1’s
-verified run. The web app does not start a new Brainbase run. A working local renderer
-is not a public deployment. Public paid end-to-end QA remains pending.
+The native Brainbase graph runs independently of an open browser. Cloudflare D1 persists run history; a scheduled refresh checks active runs every minute. Refreshing the console also reads actual task state. A failed or rejected run does not become a fake live product.
 
-## Run locally
+## Routes and source of truth
 
-Requires Node 24 and Python 3.12+; verified here with Python 3.14 on macOS ARM.
+| Route | Current behavior |
+| --- | --- |
+| `/`, `/afterlife/` | Live agent console in the original approved dashboard layout |
+| `/product/` | Portfolio of generated products |
+| `/product/?run=<id>` | Product provenance, temporary preview and Stripe test checkout |
+| `/p/<id>/` | Isolated, proxied generated product; real upstream execution |
+| `/api/runs` | Persistent run listing and new discovery request |
+| `/api/runs/<id>` | Actual agent chain, evidence, decision, repair and preview state |
+
+**Authoritative current state:** the deployed `/api/runs/<id>` snapshot, backed by the actual Brainbase tasks. `agents/live-config.json` identifies the team's native graph and four agents. Earlier documents and `person1/` evidence describe the previous, fixed DNA recovery run; they are historical, not a new run's outcome.
+
+## Deliberate hackathon limits
+
+- Generated apps run on **temporary Brainbase sandbox URLs**, proxied through the Cloudflare Worker. They can expire; this is not permanent production hosting.
+- Previews are free during the hackathon. Stripe creates real test Checkout sessions and verifies product-specific payments on return; this is a monetization demonstration, **not an enforced production paywall**. No real money is charged.
+- Public discovery is limited to one active run and ten starts per day to avoid uncontrolled agent spend.
+- Recovery and product creation are best-effort. The agents may reject a repository or fail; complex infrastructure, GPU tools and external paid dependencies are out of the quick-launch scope.
+- Historical PocketScan and DNA code is retained in source only. No prebuilt demo products or simulated results are exposed in the public app.
+
+## Development
+
+Node 24 is recommended. The static Next.js frontend and Cloudflare API run together through Wrangler:
 
 ```sh
 npm ci
-python3 -m venv .venv
-.venv/bin/pip install -r person1/build/dna-feature-map/requirements.txt
-npm run dev:full
+# Copy .dev.vars.example to .dev.vars and fill server-side credentials locally.
+npm run build
+npx wrangler d1 migrations apply DB --local
+npx wrangler dev
 ```
 
-Open **http://localhost:8787/afterlife/**. This builds the original Next UI, applies
-only local D1 migrations, and starts the Python renderer and local Cloudflare Worker.
-No cloud deployment or payment bypass is performed. Without local Stripe test keys,
-you can explore the UI and verify renderer health; paid execution stays locked.
-`npm run dev` starts just Next.js for UI editing (no Worker API).
+Open `http://localhost:8787/afterlife/`. `npm run dev` starts only Next.js, without the Worker APIs. Never commit `.dev.vars` or put API tokens in `NEXT_PUBLIC_*` variables.
 
-For real local test checkout, follow [the runbook](docs/demo-runbook.md). Never copy
-remote webhook secrets into local listeners or commit `.dev.vars`.
+Cloudflare requires `BRAINBASE_TOKEN` and `STRIPE_SECRET_KEY` Worker secrets. Run `npm run deploy` with Cloudflare credentials exported in the shell to apply D1 migrations and publish the Worker and static frontend.
 
 ## Checks
 
@@ -47,27 +56,18 @@ remote webhook secrets into local listeners or commit `.dev.vars`.
 npm run lint
 npm run typecheck
 npm test
-npm run test:capability
-.venv/bin/python person1/build/dna-feature-map/verify.py
 npm run build
-# With the renderer running on port 8090:
-node --test tests/paid-render.integration.mjs
 ```
 
-For the standalone HTTP test, start the adapter with a local test CAPABILITY_AUTH_TOKEN
-and set CAPABILITY_TEST_TOKEN to the same value. The HTTP integration test executes the actual Python tool; Stripe and D1 are test
-fixtures. It does not claim a hosted Stripe payment was completed.
+The earlier DNA renderer's Python and integration checks remain available through `npm run test:capability` and `tests/paid-render.integration.mjs`. They verify that earlier product, not arbitrary future agent output.
 
-## Project map
+## Main implementation
 
-| Component | Location |
-| --- | --- |
-| Original UI designs and runtime | `src/designs/`, `src/vendor/`, `scripts/import-designs.py` |
-| Recovered product and checkout | `src/components/recovered-product.tsx`, `checkout.tsx` |
-| Cloudflare API + Stripe/D1 | `src/index.js`, `src/billing.js`, `migrations/` |
-| Brainbase agent manifests + evidence | `agents/`, `brainbase-orchestration.yaml`, `docs/person2-contract.md` |
-| Unchanged verified CLI + HTTP adapter | `person1/build/dna-feature-map/` |
+- `src/live-runs.js`: native Brainbase task chain, evidence, deployment verification and D1 persistence.
+- `src/live-products.js`: isolated preview proxy, product-specific Stripe test checkout and verification.
+- `src/components/live-console.tsx`, `live-product.tsx`: current public app.
+- `src/designs/console-live.json`: approved console template adapted to live data by `scripts/create-live-design.py`.
+- `agents/`: native graph identifiers and actual agent instructions; `scripts/configure-brainbase.py` configures them.
+- `src/billing.js`, `person1/`, original designs: preserved prior team work.
 
-See [integration details](docs/INTEGRATION.md), [final review](docs/FINAL-REVIEW.md),
-[design provenance](docs/DESIGN-IMPORT.md), and [original team brief](docs/PROJECT-BRIEF.md).
-Deploy scripts affect the remote Cloudflare account and are separate from local setup.
+See [design provenance](docs/DESIGN-IMPORT.md) and [original team brief](docs/PROJECT-BRIEF.md) for historical context.

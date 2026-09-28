@@ -24,5 +24,5 @@ export function DesignScreen({ screen, checkout }: { screen: "console" | "pocket
   }, [screen]);
   if (error) return <main className="design-loading">The preview could not load. <button onClick={() => window.location.reload()}>Reload</button></main>;
   if (!View) return <main className="design-loading" role="status">Loading {screen === "console" ? "Afterlife" : "PocketScan"}…</main>;
-  return <><ServiceStrip console={screen === "console"} /><div className="design-export"><View startView="portfolio" startRoute={checkout ? "app" : "landing"} checkout={checkout} demo={{ ...session, navigate: href => router.push(href === "/checkout" ? "/demo/checkout/" : href) }} /></div></>;
+  return <><ServiceStrip console={screen === "console"} /><div className="design-export"><View startView="portfolio" startRoute={checkout ? "app" : "landing"} checkout={checkout} demo={{ ...session, navigate: href => router.push(href === "/checkout" ? "/demo/checkout/" : href === "/" ? "/demo/pocketscan/" : href) }} /></div></>;
 }
