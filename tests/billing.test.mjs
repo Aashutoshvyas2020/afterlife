@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../src/index.js';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 
 const envBase = {
   STRIPE_SECRET_KEY: 'sk_test_regression',
@@ -76,6 +76,42 @@ function withStripe(db, sessions = {}) {
 }
 
 function env(db) { return { ...envBase, DB: db }; }
+
+test('checkout fails closed when Stripe credentials are absent', async () => {
+  const response = await worker.fetch(new Request('https://afterlife.test/api/checkout', { method: 'POST' }), {
+    DB: fakeDb(), STRIPE_PRICE_ID: envBase.STRIPE_PRICE_ID, STRIPE_WEBHOOK_SECRET: envBase.STRIPE_WEBHOOK_SECRET,
+  });
+  assert.equal(response.status, 503);
+  assert.doesNotMatch(JSON.stringify(await response.json()), /secret|sk_test_/i);
+});
+
+test('Checkout API failure does not leak Stripe error details', async () => {
+  const db = fakeDb();
+  const restore = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ error: { message: 'private upstream response' } }, { status: 500 });
+  try {
+    const response = await worker.fetch(new Request('https://afterlife.test/api/checkout', { method: 'POST' }), env(db));
+    assert.equal(response.status, 502);
+    assert.deepEqual(await response.json(), { success: false, error: 'Checkout could not be created' });
+  } finally { globalThis.fetch = restore; }
+});
+
+test('paid execution rejects invalid input and remains unavailable without a recovered artifact', async () => {
+  const token = 'a'.repeat(64);
+  const db = fakeDb();
+  db.entitlements.push({ token_hash: createHash('sha256').update(token).digest('hex'), state: 'paid' });
+  const paidEnv = { ...env(db) };
+  paidEnv.CAPABILITY_BASE_URL = 'https://recovered.test';
+  const request = body => worker.fetch(new Request('https://afterlife.test/api/product/run', {
+    method: 'POST', headers: { cookie: `afterlife_access=${token}`, 'content-type': 'application/json' }, body,
+  }), paidEnv);
+  const invalid = await request('{}');
+  assert.equal(invalid.status, 400);
+  delete paidEnv.CAPABILITY_BASE_URL;
+  const missingArtifact = await request('{"input":{}}');
+  assert.equal(missingArtifact.status, 503);
+  assert.deepEqual(await missingArtifact.json(), { success: false, error: 'Recovered artifact is not configured' });
+});
 
 test('product run rejects callers without a paid entitlement', async () => {
   const db = fakeDb();
