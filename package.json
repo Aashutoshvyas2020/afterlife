@@ -1,0 +1,15 @@
+{
+  "name": "afterlife-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "bash scripts/deploy.sh",
+    "deploy:prod": "bash scripts/deploy.sh",
+    "smoke": "bash scripts/smoke-test.sh",
+    "deploy:dummy": "bash scripts/deploy-dummy.sh"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
