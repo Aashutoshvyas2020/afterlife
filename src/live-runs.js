@@ -274,7 +274,7 @@ export async function getRun(env, id, force = false) {
   if (!row) return null;
   const cached = row.snapshot ? JSON.parse(row.snapshot) : null;
   if (cached && !force && (now() - row.updated_at < 12 || row.state === 'passed' || (row.state === 'failed' && now() - row.updated_at < 30) || (row.state === 'live' && now() - row.updated_at < 60))) return cached;
-  if (!row.root_task_id) return { id, state: 'starting', thesis: row.thesis, stages: [], candidates: [], events: [], createdAt: row.created_at };
+  if (!row.root_task_id) return { id, state: row.state === 'failed' ? 'failed' : 'starting', thesis: row.thesis, stages: [], candidates: [], events: [], createdAt: row.created_at, error: row.state === 'failed' ? 'The agent run could not be started. Start a new run to try again.' : null };
   try { return await refresh(env, row); } catch (error) { if (cached) return { ...cached, refreshError: error.message }; throw error; }
 }
 export async function handleRuns(request, env) {

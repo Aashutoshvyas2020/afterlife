@@ -7,7 +7,7 @@ This records observed results, not guarantees about arbitrary future repositorie
 - URL: https://afterlife.afterlife-worker.workers.dev
 - Source branch: `codex/afterlife-integrated`; published using `roanshdesai`. Main was not pushed.
 - The original console layout is retained. Thinking Orb state, elapsed time and stage filters reflect actual task activity. MetalFx is limited to the primary action. Desktop, 390px mobile and reduced-motion behavior were checked.
-- Lint, TypeScript and production build pass. All 64 Node tests pass; this suite includes historical product tests as well as the current live engine. Long agent histories are read beyond the provider's default 200-message window.
+- Lint, TypeScript and production build pass. All 65 Node tests pass; this suite includes historical product tests as well as the current live engine. Long agent histories are read beyond the provider's default 200-message window, and failed task creation stays visibly failed on reload.
 
 ## First generated product
 

@@ -359,3 +359,12 @@ test('an exact200message history checks for a later result without dropping or d
   assert.equal((await taskMessages({ BRAINBASE_TOKEN: 'synthetic' }, 'exact-boundary')).items.length, 200);
   assert.deepEqual(limits, [200, 400]);
 });
+
+test('a failed initial task creation stays failed when reloaded instead of showing starting forever', async t => {
+  t.mock.method(globalThis, 'fetch', () => { throw Error('There is no native task to query'); });
+  const row = { id, thesis: 'A new sector', state: 'failed', root_task_id: null, snapshot: null, created_at: 1, updated_at: 1 };
+  const result = await getRun({ DB: database(row) }, id);
+  assert.equal(result.state, 'failed');
+  assert.match(result.error, /could not be started.*Start a new run/);
+  assert.deepEqual(result.stages, []);
+});
