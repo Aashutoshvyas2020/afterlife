@@ -5,7 +5,8 @@ import { StudioHeader } from "@/components/studio";
 
 type ServiceStatus = {
   selectedRepository?: string;
-  resurrection?: { status?: string; error?: string };
+  productName?: string;
+  resurrection?: { status?: string; error?: string; decision?: string; sourceRevision?: string };
   artifact?: { status?: string; error?: string };
   deployment?: { status?: string; productionUrl?: string };
   stripe?: { status?: string; amount?: number; currency?: string; priceId?: string };
@@ -32,10 +33,10 @@ export default function Afterlife() {
       <Stat label="Deployment" value={status?.deployment?.status || "pending"} detail="Actual service state" />
     </div>
     <div className="dashboard-grid"><div className="portfolio-main">
-      <section aria-labelledby="candidate-heading"><div className="section-heading"><h2 id="candidate-heading">Candidate orchestration</h2><span className="micro">HANDOFF REQUIRED</span></div><article className="surface candidate-card"><p className="muted">Candidate evaluation, investment decisions, builds, and launch orchestration are unavailable until the Person 1 handoff. No candidate decisions or activity are being simulated.</p></article></section>
+      <section aria-labelledby="candidate-heading"><div className="section-heading"><h2 id="candidate-heading">Verified recovery handoff</h2><span className="micro">{status?.resurrection?.decision || "PENDING"}</span></div><article className="surface candidate-card"><p className="muted">{status?.selectedRepository ? `Person 1 selected ${status.selectedRepository}; its verified capability is ${status.productName || "the DNA Feature Map"}.` : "No verified Person 1 recovery handoff is configured."}</p>{status?.resurrection?.sourceRevision && <p className="candidate-decision">Source revision: {status.resurrection.sourceRevision}</p>}{status?.resurrection?.error && <p role="alert" className="error-notice">{status.resurrection.error}</p>}</article></section>
       <section className="surface resurrection-panel"><div className="section-heading"><h2>Service readiness</h2><span className="micro">{status?.resurrection?.status?.toUpperCase() || "PENDING"}</span></div><dl className="decision-evidence"><dt>Resurrection</dt><dd>{status?.resurrection?.status || "pending"}</dd><dt>Artifact</dt><dd>{status?.artifact?.status || "pending"}</dd><dt>Deployment</dt><dd>{status?.deployment?.status || "pending"}</dd><dt>Stripe</dt><dd>{status?.stripe?.status || "pending"}</dd><dt>QA</dt><dd>{status?.qa?.status || "pending"}</dd></dl>{status?.latestError && <p role="alert" className="error-notice">{status.latestError}</p>}</section>
-    </div><aside className="surface activity-panel"><div className="section-heading"><h2>Activity</h2><span className="status-dot" /></div><p className="muted small">No live orchestration feed is available.</p><div className="activity-placeholder"><p>Waiting for the orchestration handoff.</p></div></aside></div>
-    <footer className="studio-footer"><span>AFTERLIFE <span className="accent">/</span> SOFTWARE GETS A SECOND CHANCE</span><span>Candidate orchestration unavailable until handoff.</span></footer>
+    </div><aside className="surface activity-panel"><div className="section-heading"><h2>Activity</h2><span className="status-dot" /></div><p className="muted small">No live orchestration feed is attached.</p><div className="activity-placeholder"><p>Person 1&apos;s verified handoff is shown above; live activity is not simulated.</p></div></aside></div>
+    <footer className="studio-footer"><span>AFTERLIFE <span className="accent">/</span> SOFTWARE GETS A SECOND CHANCE</span><span>Orchestration activity remains unavailable.</span></footer>
   </div></main>;
 }
 function Stat({ label, value, detail }: { label: string; value: string; detail: string }) {

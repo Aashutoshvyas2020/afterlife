@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PocketScan · Afterlife",
+  title: "DNA Feature Map · Afterlife",
   description: "A human-facing Afterlife product. Service availability reflects the deployed recovered capability.",
 };
 

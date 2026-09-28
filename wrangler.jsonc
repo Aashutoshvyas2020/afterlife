@@ -22,6 +22,11 @@
 	},
 	"vars": {
 		"STRIPE_PRICE_ID": "price_1UKilfPBBXfqZsxXOxIbQmMu",
-		"PUBLIC_URL": "https://afterlife.afterlife-worker.workers.dev"
+		"PUBLIC_URL": "https://afterlife.afterlife-worker.workers.dev",
+		"RECOVERED_REPOSITORY": "Edinburgh-Genome-Foundry/DnaFeaturesViewer",
+		"RECOVERED_SOURCE_REVISION": "049bbe4e3063e90ae9b0f88ac7e92f47b735d38a",
+		"PRODUCT_NAME": "DNA Feature Map",
+		"CAPABILITY_HEALTH_PATH": "/health",
+		"CAPABILITY_RUN_PATH": "/run"
 	}
 }

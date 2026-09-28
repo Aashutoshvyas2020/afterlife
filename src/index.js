@@ -3,7 +3,7 @@ import { handleCheckout, handleVerify, handleWebhook, handleEntitlement, require
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'cache-control': 'no-store' } });
 
 async function artifactHealth(env) {
-  if (!env.CAPABILITY_BASE_URL) return { status: 'pending', error: 'No recovered artifact configured' };
+  if (!env.CAPABILITY_BASE_URL) return { status: 'pending', error: 'Recovered capability service URL is not configured' };
   try {
     const base = new URL(env.CAPABILITY_BASE_URL);
     if (base.protocol !== 'https:' && base.hostname !== 'localhost') throw Error('Artifact URL must be HTTPS');
@@ -33,7 +33,9 @@ async function status(env) {
   return {
     selectedRepository: env.RECOVERED_REPOSITORY || null,
     productName: env.PRODUCT_NAME || 'Recovered capability',
-    resurrection: { status: 'pending', error: 'No Person 1 resurrection handoff received' },
+    resurrection: env.RECOVERED_REPOSITORY === 'Edinburgh-Genome-Foundry/DnaFeaturesViewer' && env.RECOVERED_SOURCE_REVISION === '049bbe4e3063e90ae9b0f88ac7e92f47b735d38a'
+      ? { status: 'ready', decision: 'FUND', sourceRevision: env.RECOVERED_SOURCE_REVISION }
+      : { status: 'pending', error: 'No verified Person 1 recovery handoff is configured' },
     artifact,
     deployment: { status: 'live', productionUrl: env.PUBLIC_URL || null },
     stripe: billing,
@@ -57,9 +59,10 @@ async function run(request, env) {
     body = JSON.parse(text);
     if (!body || typeof body !== 'object' || Array.isArray(body) || !Object.hasOwn(body, 'input')) throw Error('invalid input');
   } catch { return json({ success: false, error: 'Expected JSON object with input' }, 400); }
+  if (!env.CAPABILITY_AUTH_TOKEN) return json({ success: false, error: 'Recovered capability authentication is not configured' }, 503);
   try {
     const upstream = await fetch(new URL(env.CAPABILITY_RUN_PATH || '/run', base), {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body.input), signal: AbortSignal.timeout(20000)
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${env.CAPABILITY_AUTH_TOKEN}` }, body: JSON.stringify(body.input), signal: AbortSignal.timeout(20000)
     });
     if (!upstream.ok) return json({ success: false, error: `Recovered capability returned ${upstream.status}` }, 502);
     const result = await upstream.json();
@@ -68,37 +71,6 @@ async function run(request, env) {
     console.error('Recovered capability failed:', error?.name || 'unknown');
     return json({ success: false, error: 'Recovered capability unavailable or timed out' }, 502);
   }
-}
-
-function page() {
-  return new Response(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Afterlife · Recovered product</title>
-<style>body{font:16px system-ui;max-width:760px;margin:5vh auto;padding:24px;color:#e8efe9;background:#101b1b}a{color:#9ce9c4}button{padding:12px 20px;cursor:pointer;background:#9ce9c4;border:0;border-radius:6px}button:disabled{opacity:.5}pre,textarea{background:#1c3030;color:#e8efe9;border:1px solid #49635b;border-radius:6px;padding:16px;max-width:100%;overflow:auto}textarea{width:95%;height:100px}small{color:#a4c2b6}.card{border:1px solid #49635b;border-radius:12px;padding:20px;margin:16px 0}</style>
-<h1>Afterlife</h1><p>Neglected code, recovered as a real product.</p><div class="card"><h2 id="product">Recovered capability</h2><p id="repository">Waiting for a recovered artifact.</p><p id="artifact">Checking artifact…</p><p id="deployment"></p><p id="qa"></p></div>
-<div class="card"><h2>Access</h2><p id="price">Checking Stripe test-mode price…</p><button id="buy" disabled>Buy test access</button><p id="payment"></p><small>Stripe test-mode transactions only. No real revenue is collected.</small></div>
-<div class="card"><h2>Run the recovered software</h2><label for="input">Capability input (JSON)</label><textarea id="input">{}</textarea><p><button id="run" disabled>Run capability</button></p><pre id="result">Pay for access, then submit an input.</pre></div>
-<script>
-const $=id=>document.getElementById(id), format=v=>JSON.stringify(v,null,2);
-async function get(url){let r=await fetch(url);return {status:r.status,data:await r.json()}}
-async function load(){
-try{
-  let [{data:s},{data:e}]=await Promise.all([get('/api/status'),get('/api/entitlement')]);
-  $('product').textContent=s.productName;
-  $('repository').textContent=s.selectedRepository||'No selected repository handed off yet';
-  $('artifact').textContent='Artifact: '+s.artifact.status+(s.artifact.error?' — '+s.artifact.error:'');
-  $('deployment').textContent='Worker: '+s.deployment.status+(s.deployment.productionUrl?' — '+s.deployment.productionUrl:'');
-  $('qa').textContent='Independent QA: '+s.qa.status;
-  const money=new Intl.NumberFormat(undefined,{style:'currency',currency:s.stripe.currency||'USD'});
-  const divisor=10**money.resolvedOptions().maximumFractionDigits;
-  $('price').textContent=s.stripe.status==='ready'?'One-time Stripe test price: '+money.format(s.stripe.amount/divisor):'Billing: '+s.stripe.status+(s.stripe.error?' — '+s.stripe.error:'');
-  $('buy').disabled=s.stripe.status!=='ready';
-  $('payment').textContent=e.entitled?'Verified paid access':'No verified paid access';
-  $('run').disabled=!e.entitled||s.artifact.status!=='ready';
-}catch(_){$('payment').textContent='Cannot reach the service. Retry by refreshing.'}
-}
-$('buy').onclick=async()=>{ $('buy').disabled=true;try{let r=await fetch('/api/checkout',{method:'POST'}),d=await r.json();if(!r.ok||!d.url)throw Error(d.error||'Checkout unavailable');location.assign(d.url)}catch(e){$('payment').textContent=e.message;$('buy').disabled=false}};
-$('run').onclick=async()=>{try{let input=JSON.parse($('input').value);$('result').textContent='Running…';let r=await fetch('/api/product/run',{method:'POST',headers:{'content-type':'application/json'},body:format({input})});$('result').textContent=format(await r.json())}catch(e){$('result').textContent='Invalid JSON input or connection error: '+e.message}};
-load();
-</script></html>`, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
 const worker = {
@@ -111,7 +83,7 @@ const worker = {
     if (path === '/api/stripe/webhook' && method === 'POST') return handleWebhook(request, env);
     if (path === '/api/entitlement' && method === 'GET') return handleEntitlement(request, env);
     if (path === '/api/product/run' && method === 'POST') return run(request, env);
-    if ((path === '/product' || path === '/product/') && method === 'GET') return page();
+    if ((path === '/product' || path === '/product/') && method === 'GET') return Response.redirect(new URL('/', request.url), 302);
     if (env.ASSETS && (method === 'GET' || method === 'HEAD')) return env.ASSETS.fetch(request);
     return json({ error: 'Not found' }, 404);
   }
