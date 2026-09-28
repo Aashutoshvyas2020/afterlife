@@ -6,6 +6,10 @@ Use a **verified HTTPS service endpoint** for the first integration. Provide `re
 
 Person 2 can use `/product` (product UI), `/api/status` (deployment, artifact, Stripe test price, QA), `/api/checkout` (POST, returns URL), `/api/checkout/verify?session_id=...`, `/api/entitlement`, and `/api/product/run` (POST `{ "input": ... }`). The dashboard may show `pending` when a real handoff or QA result is absent. Cookie-based access is per browser; it is not account-based identity.
 
+## Shared status contract
+
+`GET /api/status` returns `selectedRepository`, `resurrection.status`, `artifact.status`, `deployment.status`/`productionUrl`, Stripe test price `status`/`priceId`/`amount`/`currency`, `qa.status`, and `latestError`. `pending` is an absent handoff/prerequisite; never change resurrection, artifact, or QA to `ready` without evidence. Current responses truthfully report no Person 1 handoff, a live Worker, ready test-mode billing, and QA pending. `/afterlife/` renders these same service fields.
+
 ## Initial setup
 
 1. `npm install`; `npx wrangler --version`; `npx wrangler whoami`; `npx wrangler deploy --help`. If not authenticated, `npx wrangler login` for persistent production access. A temporary public proof succeeded using `npx wrangler deploy --config wrangler.dummy.jsonc --temporary` at `https://afterlife-dummy.blend-grouse.workers.dev/health`; this preview account expires and is **not** the production account. Once authenticated, run `npm run deploy:dummy` and verify its actual `/health` URL. Never infer public deployment from local Wrangler.

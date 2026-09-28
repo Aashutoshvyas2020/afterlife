@@ -33,10 +33,12 @@ async function status(env) {
   return {
     selectedRepository: env.RECOVERED_REPOSITORY || null,
     productName: env.PRODUCT_NAME || 'Recovered capability',
+    resurrection: { status: 'pending', error: 'No Person 1 resurrection handoff received' },
     artifact,
     deployment: { status: 'live', productionUrl: env.PUBLIC_URL || null },
     stripe: billing,
-    qa: { status: 'pending', detail: 'Independent production QA not recorded' }
+    qa: { status: 'pending', detail: 'Independent full-product QA not recorded' },
+    latestError: (artifact.status === 'failed' && artifact.error) || (billing.status === 'failed' && billing.error) || null
   };
 }
 
