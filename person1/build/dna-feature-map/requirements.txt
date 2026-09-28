@@ -1,0 +1,3 @@
+dna-features-viewer @ git+https://github.com/Edinburgh-Genome-Foundry/DnaFeaturesViewer.git@049bbe4e3063e90ae9b0f88ac7e92f47b735d38a
+matplotlib==3.11.2
+Pillow==12.3.0
