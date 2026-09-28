@@ -40,7 +40,7 @@ if [[ -n "$FIXTURE" ]]; then
   jq -e 'type == "object"' "$FIXTURE" >/dev/null
   jq 'if has("input") then . else {input: .} end' "$FIXTURE" |
     request --cookie "$SMOKE_COOKIE_FILE" -H 'content-type: application/json' --data-binary @- "$BASE_URL/api/product/run" |
-    jq -e '.success == true and .result.mime_type == "image/png" and (.result.image_base64 | startswith("iVBORw0KGgo"))' >/dev/null
+    jq -e '.success == true and .result.mimeType == "image/png" and (.result.imageBase64 | startswith("iVBORw0KGgo"))' >/dev/null
   printf 'Paid capability execution PASS; full smoke PASS\n'
 else
   printf 'SMOKE INCOMPLETE: paid capability NOT VERIFIED; supply fixture and SMOKE_COOKIE_FILE for a full PASS.\n'

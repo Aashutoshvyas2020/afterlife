@@ -13,7 +13,7 @@ function capabilityUrl(env, path) {
   return target;
 }
 function capabilityHeaders(env) {
-  return { 'content-type': 'application/json', ...(env.CAPABILITY_TOKEN ? { authorization: `Bearer ${env.CAPABILITY_TOKEN}` } : {}) };
+  return { 'content-type': 'application/json', ...(env.CAPABILITY_AUTH_TOKEN ? { authorization: `Bearer ${env.CAPABILITY_AUTH_TOKEN}` } : {}) };
 }
 async function artifactHealth(env) {
   if (!env.CAPABILITY_BASE_URL) return { status: 'pending', error: 'No recovered artifact configured' };
@@ -21,7 +21,7 @@ async function artifactHealth(env) {
     const response = await fetch(capabilityUrl(env, env.CAPABILITY_HEALTH_PATH || '/health'), { headers: capabilityHeaders(env), signal: AbortSignal.timeout(5000), redirect: 'manual' });
     if (!response.ok) return { status: 'failed', error: `Artifact health returned ${response.status}` };
     const health = await response.json();
-    return health.status === 'ready' && health.capability === 'dna-feature-map'
+    return health.status === 'healthy' && health.service === 'dna-feature-map'
       ? { status: 'ready' } : { status: 'failed', error: 'Endpoint is not the DNA feature-map renderer' };
   } catch {
     return { status: 'failed', error: 'Artifact health check failed' };
@@ -82,7 +82,7 @@ async function run(request, env) {
     }
     if (!upstream.ok) return json({ success: false, error: `Recovered capability returned ${upstream.status}` }, 502);
     const result = await upstream.json();
-    if (result?.mime_type !== 'image/png' || typeof result.image_base64 !== 'string' || !result.image_base64.startsWith('iVBORw0KGgo') || result.image_base64.length > 2000000 || !/^[a-f0-9]{64}$/.test(result.sha256 || '') || !Number.isInteger(result.sequence_length) || !Number.isInteger(result.feature_count)) {
+    if (result?.mimeType !== 'image/png' || typeof result.imageBase64 !== 'string' || !result.imageBase64.startsWith('iVBORw0KGgo') || result.imageBase64.length > 2000000 || !/^[a-f0-9]{64}$/.test(result.sha256 || '') || !Number.isInteger(result.sequenceLength) || !Number.isInteger(result.featureCount)) {
       return json({ success: false, error: 'Renderer returned an invalid feature map' }, 502);
     }
     return json({ success: true, result, metadata: { repository: env.RECOVERED_REPOSITORY || handoff.repository } });

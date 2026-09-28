@@ -11,7 +11,7 @@ const sample = JSON.parse(readFileSync(new URL('../person1/build/dna-feature-map
 test('verified test payment -> entitlement -> real DNA map over HTTP', async t => {
   const actualFetch = globalThis.fetch;
   const DB = fakeDb();
-  const env = { DB, CAPABILITY_BASE_URL: process.env.CAPABILITY_TEST_URL || 'http://127.0.0.1:8090', STRIPE_SECRET_KEY: 'sk_test_integration', STRIPE_PRICE_ID: 'price_integration', STRIPE_WEBHOOK_SECRET: 'whsec_integration' };
+  const env = { DB, CAPABILITY_BASE_URL: process.env.CAPABILITY_TEST_URL || 'http://127.0.0.1:8090', CAPABILITY_AUTH_TOKEN: process.env.CAPABILITY_TEST_TOKEN || 'afterlife-local-test', STRIPE_SECRET_KEY: 'sk_test_integration', STRIPE_PRICE_ID: 'price_integration', STRIPE_WEBHOOK_SECRET: 'whsec_integration' };
   const origin = 'https://afterlife.test';
   t.mock.method(globalThis, 'fetch', async (input, init) => {
     const url = new URL(input);
@@ -35,11 +35,11 @@ test('verified test payment -> entitlement -> real DNA map over HTTP', async t =
   const response = await submit(cookie);
   assert.equal(response.status, 200);
   const { result } = await response.json();
-  const png = Buffer.from(result.image_base64, 'base64');
+  const png = Buffer.from(result.imageBase64, 'base64');
   assert.deepEqual([...png.subarray(0, 8)], [137,80,78,71,13,10,26,10]);
-  assert.equal(result.sequence_length, 488);
-  assert.equal(result.feature_count, 3);
-  assert.equal(result.png_bytes, png.length);
+  assert.equal(result.sequenceLength, 488);
+  assert.equal(result.featureCount, 3);
+  assert.equal(result.pngBytes, png.length);
   assert.equal(result.sha256, createHash('sha256').update(png).digest('hex'));
   assert.equal(png.readUInt32BE(16), 865);
   assert.equal(png.readUInt32BE(20), 255);

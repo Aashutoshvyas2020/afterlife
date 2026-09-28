@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 
 const token = 'a'.repeat(64);
 const paidDb = { prepare: () => ({ bind: hash => ({ first: async () => hash === createHash('sha256').update(token).digest('hex') ? { state: 'paid' } : null }) }) };
-const env = { DB: paidDb, CAPABILITY_BASE_URL: 'https://renderer.test', CAPABILITY_TOKEN: 'test-renderer-token' };
+const env = { DB: paidDb, CAPABILITY_BASE_URL: 'https://renderer.test', CAPABILITY_AUTH_TOKEN: 'test-renderer-token' };
 const paidRun = body => new Request('https://afterlife.test/api/product/run', { method: 'POST', headers: { cookie: `afterlife_access=${token}` }, body: typeof body === 'string' ? body : JSON.stringify(body) });
 
 test('recorded recovery does not claim an artifact deployment or public QA', async () => {

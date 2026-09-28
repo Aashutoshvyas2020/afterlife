@@ -16,7 +16,7 @@ renderer endpoint and hosted payment verification described below.
 | Severity | Finding | Resolution |
 | --- | --- | --- |
 | Critical | Teams built different product contracts: protein demo vs DNA renderer | Kept the approved demo; exposed DNA Feature Map separately with correct input, output and checkout identity |
-| Critical | Verified renderer was CLI-only; Worker required HTTP | Added bounded HTTP adapter around unchanged CLI, known-good input, PNG preview/download, service Dockerfile |
+| Critical | Verified renderer was CLI-only; Worker required HTTP | Integrated Person 3’s latest HTTP adapter and Dockerfile; added input limits, known-good input and PNG preview/download |
 | High | UI checkout state could be confused with server entitlement | Separate `/demo/checkout` from `/checkout`; Worker authorizes all real execution using D1 + secure cookie |
 | High | No real recovered-product path in approved UI | Added a small service link/status strip; original templates, interactions and landing page retained |
 | High | Healthy HTTP 200 could be an unrelated endpoint | Require the DNA renderer’s health identity; reject malformed output and unsafe redirects |
@@ -50,7 +50,7 @@ renderer endpoint and hosted payment verification described below.
 
 1. **Public renderer deployment.** The live Worker currently reports no artifact.
    Deploy/authenticate the HTTP renderer and configure CAPABILITY_BASE_URL and
-   CAPABILITY_TOKEN. Local integration is working; no cloud deployment was performed.
+   CAPABILITY_AUTH_TOKEN. Local integration is working; no cloud deployment was performed.
 2. **Hosted Stripe golden path.** The live $5 one-time test price is ready. Complete
    real hosted test checkout → cookie verification → map generation/download after
    deployment. Independent public QA remains pending. Test webhook replay there too.
@@ -73,3 +73,7 @@ renderer endpoint and hosted payment verification described below.
   results. DNA Feature Map draws supplied annotations; it predicts no biology.
 - Original console is designed for a desktop presentation. Preserve that layout
   for the hackathon rather than undertaking a late responsive redesign.
+
+Final fetch included Ansh’s late `b895140` and `4d44ac6` commits. The combined branch
+uses his `http_adapter.py`, `CAPABILITY_AUTH_TOKEN`, camelCase result contract and
+Worker configuration. The duplicate integration adapter was removed.

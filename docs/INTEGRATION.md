@@ -7,7 +7,7 @@
 - Recovery: `origin/feature/person1-brainbase-core` at `a4f5283`. Scout, Investment,
   Resurrection manifests, recorded native Brainbase execution, pinned DnaFeaturesViewer
   CLI, and canonical alpha fixture. The verified CLI and fixture are unchanged.
-- Payments/runtime: `origin/main` at `9236f8b`. Cloudflare Worker, D1, Stripe test
+- Payments/runtime: `origin/main` at `4d44ac6`. Cloudflare Worker, D1, Stripe test
   checkout/verification/webhook, deployment scripts, and regression tests.
 
 The original Next and Worker branches had separate Git roots. Their histories are
@@ -29,15 +29,14 @@ embedded preview modal. The console bridge routes its demo upgrade there.
 ```text
 /product -> /api/product/run {input: JSON}
   -> D1 checks hashed HttpOnly cookie entitlement
-  -> HTTP adapter /run (optional Bearer token, required for non-loopback service binding)
+  -> HTTP adapter /run (required Bearer token)
   -> unchanged pinned Python CLI
   -> validated PNG + metadata -> browser preview/download
 ```
 
-`service.py` bounds input size, bases, annotation count, coordinates, figure width,
+`http_adapter.py` bounds input size, bases, annotation count, coordinates, figure width,
 and subprocess runtime. It uses per-request temporary files and deletes them after
-rendering. `Dockerfile` remains the original CLI image definition;
-`Dockerfile.service` adds the HTTP entrypoint. Neither image has been built here
+rendering. Person 3’s `Dockerfile` supplies the HTTP entrypoint. The image has not been built here
 because Docker is not installed.
 
 `GET /api/status` reports recorded recovery evidence separately from current renderer
@@ -52,8 +51,8 @@ not the static HTML app. Only explicit Next routes are served as pages.
 
 ## Remaining external steps
 
-1. Host `Dockerfile.service` on an appropriate Python/container runtime over HTTPS.
-   Set `CAPABILITY_TOKEN` on the service and as a Worker secret. Keep the renderer
+1. Host `Dockerfile` on an appropriate Python/container runtime over HTTPS.
+   Set `CAPABILITY_AUTH_TOKEN` on the service and as a Worker secret. Keep the renderer
    private/authenticated; its raw `/run` endpoint otherwise bypasses the payment gate.
 2. Configure Worker `CAPABILITY_BASE_URL` and deploy this combined static export +
    Worker, using the correct account and an approved deployment.

@@ -16,12 +16,12 @@ Follow README setup, then `npm run dev:full`. Open http://localhost:8787/afterli
 
 ## Hosted golden path (requires approved deployment)
 
-1. Build/host `person1/build/dna-feature-map/Dockerfile.service` on a Python container
-   runtime. It listens on PORT (8090 by default). Set HOST=0.0.0.0 and a strong
-   CAPABILITY_TOKEN. Docker build/execution has not been verified on this machine.
-2. Configure CAPABILITY_BASE_URL in Worker vars and CAPABILITY_TOKEN as a Worker
+1. Build/host `person1/build/dna-feature-map/Dockerfile` on a Python container
+   runtime. It listens on PORT (8080 by default). Set HOST=0.0.0.0 and a strong
+   CAPABILITY_AUTH_TOKEN. Docker build/execution has not been verified on this machine.
+2. Configure CAPABILITY_BASE_URL in Worker vars and CAPABILITY_AUTH_TOKEN as a Worker
    secret. It forwards Bearer auth to `/health` and `/run`. Health must return
-   `{ "status": "ready", "capability": "dna-feature-map" }`.
+   `{ "status": "healthy", "service": "dna-feature-map" }`.
 3. Existing Cloudflare config targets `afterlife-production` D1 and
    `https://afterlife.afterlife-worker.workers.dev`. The configured one-time Stripe
    price is $5 in test mode. Its previous product name is PocketScan Pro; update that

@@ -24,7 +24,7 @@ function withStripe(db, sessions = {}) {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init = {}) => {
     const url = new URL(input);
-    if (url.hostname === 'recovered.test' && url.pathname === '/health') return Response.json({ status: 'ready', capability: 'dna-feature-map' });
+    if (url.hostname === 'recovered.test' && url.pathname === '/health') return Response.json({ status: 'healthy', service: 'dna-feature-map' });
     if (url.pathname.endsWith('/prices/' + envBase.STRIPE_PRICE_ID)) {
       return Response.json({ id: envBase.STRIPE_PRICE_ID, livemode: false, active: true, type: 'one_time' });
     }
@@ -52,7 +52,7 @@ test('checkout fails closed when Stripe credentials are absent', async () => {
 test('Checkout API failure does not leak Stripe error details', async () => {
   const db = fakeDb();
   const restore = globalThis.fetch;
-  globalThis.fetch = async input => new URL(input).hostname === 'recovered.test' ? Response.json({ status: 'ready', capability: 'dna-feature-map' }) : Response.json({ error: { message: 'private upstream response' } }, { status: 500 });
+  globalThis.fetch = async input => new URL(input).hostname === 'recovered.test' ? Response.json({ status: 'healthy', service: 'dna-feature-map' }) : Response.json({ error: { message: 'private upstream response' } }, { status: 500 });
   try {
     const response = await worker.fetch(new Request('https://afterlife.test/api/checkout', { method: 'POST' }), env(db));
     assert.equal(response.status, 502);

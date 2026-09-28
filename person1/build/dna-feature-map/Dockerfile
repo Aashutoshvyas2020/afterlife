@@ -6,5 +6,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir -r requirements.txt
+ENV MPLCONFIGDIR=/tmp/matplotlib
+RUN python -c "import matplotlib.pyplot"
 COPY run_seqrecord_plot.py .
-ENTRYPOINT ["python", "/app/run_seqrecord_plot.py"]
+COPY http_adapter.py input_validation.py .
+EXPOSE 8080
+ENTRYPOINT ["python", "/app/http_adapter.py"]

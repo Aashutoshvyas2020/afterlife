@@ -54,7 +54,8 @@ npm run build
 node --test tests/paid-render.integration.mjs
 ```
 
-The HTTP integration test executes the actual Python tool; Stripe and D1 are test
+For the standalone HTTP test, start the adapter with a local test CAPABILITY_AUTH_TOKEN
+and set CAPABILITY_TEST_TOKEN to the same value. The HTTP integration test executes the actual Python tool; Stripe and D1 are test
 fixtures. It does not claim a hosted Stripe payment was completed.
 
 ## Project map

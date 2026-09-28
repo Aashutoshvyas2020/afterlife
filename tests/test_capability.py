@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SERVICE = ROOT / "person1/build/dna-feature-map/service.py"
+SERVICE = ROOT / "person1/build/dna-feature-map/input_validation.py"
 spec = importlib.util.spec_from_file_location("capability_service", SERVICE)
 service = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(service)

@@ -5,4 +5,4 @@ STRIPE_WEBHOOK_SECRET=whsec_REPLACE
 # The non-secret price ID is set in wrangler.jsonc. Override only if needed:
 # STRIPE_PRICE_ID=price_REPLACE
 # Remote renderer deployments require the same secret on Worker and Python service:
-# CAPABILITY_TOKEN=REPLACE
+# CAPABILITY_AUTH_TOKEN=REPLACE
