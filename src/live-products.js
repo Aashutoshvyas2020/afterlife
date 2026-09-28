@@ -65,7 +65,7 @@ export async function proxyProduct(request, env) {
     const base = validPreview(row.preview_url);
     const target = new URL(path + url.search, base);
     if (target.origin !== base.origin) return json({ error: 'Invalid product path' }, 400, cors);
-    const upstream = await fetch(target, { method: request.method, headers, ...(body ? {body} : {}), redirect: 'manual', signal: AbortSignal.timeout(25000) });
+    const upstream = await fetch(target, { cache: 'no-store', method: request.method, headers, ...(body ? {body} : {}), redirect: 'manual', signal: AbortSignal.timeout(25000) });
     const responseHeaders = new Headers(cors);
     responseHeaders.set('content-type', upstream.headers.get('content-type') || 'application/octet-stream');
     responseHeaders.set('cache-control', 'no-store');
